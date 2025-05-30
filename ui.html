@@ -6,127 +6,148 @@
   <style>
     body {
       margin: 0;
-      padding: 16px;
+      padding: 0;
       background: var(--figma-color-bg);
+      font-family: var(--font-stack);
+      width: 240px;
     }
 
-    .header {
-      text-align: center;
-      margin-bottom: 16px;
-      padding-bottom: 16px;
+    .plugin-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: var(--figma-color-bg);
       border-bottom: 1px solid var(--figma-color-border);
     }
 
-    .header h1 {
-      margin: 0 0 4px 0;
-      font-size: 14px;
-      font-weight: 600;
+    .plugin-title {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--figma-color-text);
+    }
+
+    .close-btn {
+      padding: 4px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--figma-color-text-secondary);
     }
 
     .plugin-section {
-      margin-bottom: 16px;
+      padding: 12px;
+      border-bottom: 1px solid var(--figma-color-border);
     }
 
-    .section-header {
+    .section-title {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--figma-color-text);
+      margin-bottom: 8px;
+    }
+
+    .export-controls {
       display: flex;
+      gap: 8px;
       align-items: center;
       margin-bottom: 8px;
     }
 
-    .section-icon {
-      margin-right: 6px;
-      font-size: 12px;
+    .scale-select, .format-select {
+      width: 60px;
     }
 
-    .section-disabled {
+    .export-btn {
+      width: 100%;
+    }
+
+    .copy-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 6px;
+      height: 28px;
+    }
+
+    .copy-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .format-dropdown {
+      width: 60px;
+      margin-right: 8px;
+    }
+
+    .copy-label {
+      flex: 1;
+      font-size: 11px;
+      color: var(--figma-color-text);
+    }
+
+    .copy-indicator {
+      width: 16px;
+      height: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 8px;
+    }
+
+    .copy-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px;
+      color: var(--figma-color-text-secondary);
+      opacity: 0.6;
+      transition: opacity 0.2s;
+    }
+
+    .copy-btn:hover {
+      opacity: 1;
+    }
+
+    .copy-btn.active {
+      opacity: 1;
+      color: var(--figma-color-text);
+    }
+
+    .disabled {
       opacity: 0.5;
       pointer-events: none;
     }
 
-    .selection-status {
-      margin-bottom: 16px;
-      padding: 8px;
-      border-radius: 2px;
-      font-size: 11px;
-      background: var(--figma-color-bg-secondary);
-      border: 1px solid var(--figma-color-border);
+    .theme-toggle {
+      position: absolute;
+      top: 8px;
+      right: 32px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 12px;
+      opacity: 0.7;
     }
 
-    .selection-status.no-selection {
-      background: var(--figma-color-bg-warning);
-      color: var(--figma-color-text-warning);
-      border-color: var(--figma-color-border-warning);
+    /* Dark theme override */
+    [data-theme="dark"] {
+      --figma-color-bg: #2c2c2c;
+      --figma-color-bg-secondary: #383838;
+      --figma-color-text: #ffffff;
+      --figma-color-text-secondary: #b3b3b3;
+      --figma-color-border: #484848;
+      --figma-color-border-selected: #18a0fb;
     }
 
-    .color-item {
-      display: flex;
-      align-items: center;
-      padding: 6px;
-      margin-bottom: 4px;
-      background: var(--figma-color-bg);
-      border: 1px solid var(--figma-color-border);
-      border-radius: 2px;
-    }
-
-    .color-preview {
-      width: 16px;
-      height: 16px;
-      border-radius: 2px;
-      margin-right: 8px;
-      border: 1px solid var(--figma-color-border);
-    }
-
-    .color-info {
-      flex: 1;
-      margin-right: 8px;
-    }
-
-    .color-value {
-      font-size: 11px;
-      font-weight: 500;
-      margin-bottom: 2px;
-    }
-
-    .color-secondary {
-      font-size: 10px;
-      color: var(--figma-color-text-secondary);
-    }
-
-    .color-actions {
-      display: flex;
-      gap: 4px;
-    }
-
-    .copy-btn {
-      font-size: 10px;
-      padding: 2px 6px;
-    }
-
-    .no-colors {
-      color: var(--figma-color-text-secondary);
-      font-size: 11px;
-      font-style: italic;
-      text-align: center;
-      padding: 12px;
-    }
-
-    .coming-soon {
-      font-size: 10px;
-      color: var(--figma-color-text-secondary);
-      font-style: italic;
-      margin-left: 4px;
-    }
-
+    /* Success toast */
     .success-toast {
       position: fixed;
       top: 8px;
       right: 8px;
-      background: var(--figma-color-bg-success);
-      color: var(--figma-color-text-success);
+      background: var(--figma-color-bg-success, #0fa958);
+      color: white;
       padding: 6px 10px;
       border-radius: 2px;
       font-size: 11px;
-      border: 1px solid var(--figma-color-border-success);
       opacity: 0;
       transform: translateX(100%);
       transition: all 0.3s ease;
@@ -137,88 +158,123 @@
       opacity: 1;
       transform: translateX(0);
     }
-
-    .divider {
-      height: 1px;
-      background: var(--figma-color-border);
-      margin: 12px 0;
-    }
   </style>
 </head>
-<body>
-  <div class="header">
-    <h1>🧩 Elemental</h1>
-    <div class="type type--small type--inverse">Advanced Figma Tools</div>
+<body data-theme="dark">
+  <!-- Header -->
+  <div class="plugin-header">
+    <div class="plugin-title">🧩 Elemental</div>
+    <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+    <button class="close-btn" onclick="closePlugin()">✕</button>
   </div>
-
-  <!-- Selection Status -->
-  <div id="selection-status" class="selection-status no-selection">
-    <div class="type type--small">Select a layer to see available tools</div>
-  </div>
-
-  <!-- Color Tools Section -->
-  <div class="plugin-section" id="color-section">
-    <div class="section-header">
-      <span class="section-icon">🎨</span>
-      <div class="label">Color Tools</div>
-    </div>
-    
-    <div id="fill-colors" style="display: none;">
-      <div class="type type--small" style="margin-bottom: 6px; font-weight: 500;">Fill Colors:</div>
-      <div id="fill-colors-list"></div>
-    </div>
-
-    <div id="stroke-colors" style="display: none;">
-      <div class="type type--small" style="margin-bottom: 6px; margin-top: 8px; font-weight: 500;">Stroke Colors:</div>
-      <div id="stroke-colors-list"></div>
-    </div>
-
-    <div id="no-colors" class="no-colors">
-      <div class="type type--small">No solid colors found in selection</div>
-    </div>
-  </div>
-
-  <div class="divider"></div>
 
   <!-- Export Section -->
-  <div class="plugin-section section-disabled">
-    <div class="section-header">
-      <span class="section-icon">📤</span>
-      <div class="label">Export Tools</div>
-      <span class="coming-soon">(Coming Soon)</span>
+  <div class="plugin-section" id="export-section">
+    <div class="section-title">Export</div>
+    
+    <div class="export-controls">
+      <select class="select-menu scale-select" id="scale-select">
+        <option value="0.5">0.5x</option>
+        <option value="1">1x</option>
+        <option value="2" selected>2x</option>
+        <option value="3">3x</option>
+        <option value="4">4x</option>
+      </select>
+
+      <select class="select-menu format-select" id="format-select">
+        <option value="PNG" selected>PNG</option>
+        <option value="JPG">JPG</option>
+        <option value="SVG">SVG</option>
+        <option value="PDF">PDF</option>
+      </select>
     </div>
-    <button class="button button--secondary" disabled>Export Selected</button>
+
+    <button class="button button--primary export-btn" id="export-btn" disabled>
+      Export
+    </button>
   </div>
 
-  <div class="divider"></div>
-
-  <!-- Text Tools Section -->
-  <div class="plugin-section section-disabled">
-    <div class="section-header">
-      <span class="section-icon">📝</span>
-      <div class="label">Text Tools</div>
-      <span class="coming-soon">(Coming Soon)</span>
+  <!-- Copy Section -->
+  <div class="plugin-section" id="copy-section">
+    <div class="section-title">Copy</div>
+    
+    <div class="copy-row" id="fill-row" style="display: none;">
+      <select class="select-menu format-dropdown" id="fill-format">
+        <option value="hex" selected>HEX</option>
+        <option value="hsl">HSL</option>
+        <option value="rgb">RGB</option>
+        <option value="css">CSS</option>
+      </select>
+      <div class="copy-label">Fill</div>
+      <div class="copy-indicator">
+        <button class="copy-btn" onclick="copyFillColor()">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+            <path d="M8.5 1.5h-5A1.5 1.5 0 002 3v6a1.5 1.5 0 001.5 1.5h5A1.5 1.5 0 0010 9V3a1.5 1.5 0 00-1.5-1.5z"/>
+            <path d="M10.5 4.5h-1v5a2 2 0 01-2 2h-5v1a1.5 1.5 0 001.5 1.5h5a1.5 1.5 0 001.5-1.5v-6z"/>
+          </svg>
+        </button>
+      </div>
     </div>
-    <button class="button button--secondary" disabled>Copy Text</button>
-  </div>
 
-  <div class="divider"></div>
-
-  <!-- Quick Actions -->
-  <div class="plugin-section section-disabled">
-    <div class="section-header">
-      <span class="section-icon">⚡</span>
-      <div class="label">Quick Actions</div>
-      <span class="coming-soon">(Coming Soon)</span>
+    <div class="copy-row" id="stroke-row" style="display: none;">
+      <select class="select-menu format-dropdown" id="stroke-format">
+        <option value="hex" selected>HEX</option>
+        <option value="hsl">HSL</option>
+        <option value="rgb">RGB</option>
+        <option value="css">CSS</option>
+      </select>
+      <div class="copy-label">Stroke</div>
+      <div class="copy-indicator">
+        <button class="copy-btn" onclick="copyStrokeColor()">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+            <path d="M8.5 1.5h-5A1.5 1.5 0 002 3v6a1.5 1.5 0 001.5 1.5h5A1.5 1.5 0 0010 9V3a1.5 1.5 0 00-1.5-1.5z"/>
+            <path d="M10.5 4.5h-1v5a2 2 0 01-2 2h-5v1a1.5 1.5 0 001.5 1.5h5a1.5 1.5 0 001.5-1.5v-6z"/>
+          </svg>
+        </button>
+      </div>
     </div>
-    <button class="button button--secondary" disabled>Quick Export</button>
+
+    <div id="no-selection" class="copy-row">
+      <div class="copy-label" style="opacity: 0.6; font-style: italic;">
+        Select a layer to copy colors
+      </div>
+    </div>
   </div>
 
   <!-- Success Toast -->
   <div id="success-toast" class="success-toast"></div>
 
+  <!-- Figma Plugin DS JavaScript -->
+  <script src="./node_modules/figma-plugin-ds/dist/iife/figma-plugin-ds.js"></script>
   <script>
     let currentSelection = null;
+    let currentFillColor = null;
+    let currentStrokeColor = null;
+
+    // Initialize Figma DS components
+    document.addEventListener('DOMContentLoaded', function() {
+      selectMenu.init();
+      console.log('Elemental plugin loaded with Figma DS');
+    });
+
+    // Theme toggle
+    function toggleTheme() {
+      const body = document.body;
+      const themeToggle = document.querySelector('.theme-toggle');
+      
+      if (body.getAttribute('data-theme') === 'dark') {
+        body.setAttribute('data-theme', 'light');
+        themeToggle.textContent = '☀️';
+      } else {
+        body.setAttribute('data-theme', 'dark');
+        themeToggle.textContent = '🌙';
+      }
+    }
+
+    // Close plugin
+    function closePlugin() {
+      parent.postMessage({ pluginMessage: { type: 'close-plugin' } }, '*');
+    }
 
     // Show success message
     function showSuccess(message) {
@@ -240,28 +296,37 @@
       });
     }
 
-    // Create color item HTML using Figma design system
-    function createColorItem(colorData, type = 'fill') {
-      return `
-        <div class="color-item">
-          <div class="color-preview" style="background-color: ${colorData.hex}"></div>
-          <div class="color-info">
-            <div class="color-value">${colorData.hex}</div>
-            <div class="color-secondary">${colorData.hsl}</div>
-          </div>
-          <div class="color-actions">
-            <button class="button button--secondary copy-btn" onclick="copyColor('${colorData.hex}', 'hex')">HEX</button>
-            <button class="button button--secondary copy-btn" onclick="copyColor('${colorData.hsl}', 'hsl')">HSL</button>
-            <button class="button button--secondary copy-btn" onclick="copyColor('${colorData.rgb}', 'rgb')">RGB</button>
-          </div>
-        </div>
-      `;
+    // Copy fill color
+    function copyFillColor() {
+      if (currentFillColor) {
+        const format = document.getElementById('fill-format').value;
+        const value = currentFillColor[format];
+        copyToClipboard(value, format);
+      }
     }
 
-    // Copy color function
-    window.copyColor = function(value, format) {
-      copyToClipboard(value, format);
+    // Copy stroke color
+    function copyStrokeColor() {
+      if (currentStrokeColor) {
+        const format = document.getElementById('stroke-format').value;
+        const value = currentStrokeColor[format];
+        copyToClipboard(value, format);
+      }
     }
+
+    // Export functionality
+    document.getElementById('export-btn').addEventListener('click', function() {
+      const scale = document.getElementById('scale-select').value;
+      const format = document.getElementById('format-select').value;
+      
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'export', 
+          scale: parseFloat(scale),
+          format: format 
+        } 
+      }, '*');
+    });
 
     // Handle messages from plugin
     window.onmessage = (event) => {
@@ -277,62 +342,49 @@
 
     // Update UI based on selection
     function updateUI(selectionData) {
-      const statusDiv = document.getElementById('selection-status');
-      const colorSection = document.getElementById('color-section');
-      const fillColorsDiv = document.getElementById('fill-colors');
-      const strokeColorsDiv = document.getElementById('stroke-colors');
-      const noColorsDiv = document.getElementById('no-colors');
-      const fillColorsList = document.getElementById('fill-colors-list');
-      const strokeColorsList = document.getElementById('stroke-colors-list');
+      const exportSection = document.getElementById('export-section');
+      const fillRow = document.getElementById('fill-row');
+      const strokeRow = document.getElementById('stroke-row');
+      const noSelection = document.getElementById('no-selection');
+      const exportBtn = document.getElementById('export-btn');
 
       if (!selectionData.hasSelection) {
-        statusDiv.className = 'selection-status no-selection';
-        statusDiv.innerHTML = '<div class="type type--small">Select a layer to see available tools</div>';
-        colorSection.classList.add('section-disabled');
-        fillColorsDiv.style.display = 'none';
-        strokeColorsDiv.style.display = 'none';
-        noColorsDiv.style.display = 'block';
+        // No selection
+        exportSection.classList.add('disabled');
+        exportBtn.disabled = true;
+        fillRow.style.display = 'none';
+        strokeRow.style.display = 'none';
+        noSelection.style.display = 'flex';
+        currentFillColor = null;
+        currentStrokeColor = null;
         return;
       }
 
-      // Update status
-      const count = selectionData.selectionCount;
-      statusDiv.className = 'selection-status';
-      statusDiv.innerHTML = count === 1 
-        ? `<div class="type type--small">Selected: ${selectionData.nodeType} layer</div>`
-        : `<div class="type type--small">Selected: ${count} layers (showing first)</div>`;
+      // Has selection
+      exportSection.classList.remove('disabled');
+      exportBtn.disabled = false;
+      noSelection.style.display = 'none';
 
-      // Update color section
-      colorSection.classList.remove('section-disabled');
-      
-      const hasColors = selectionData.hasFill || selectionData.hasStroke;
-      noColorsDiv.style.display = hasColors ? 'none' : 'block';
-
-      // Fill colors
+      // Update fill color
       if (selectionData.hasFill && selectionData.fillColors.length > 0) {
-        fillColorsDiv.style.display = 'block';
-        fillColorsList.innerHTML = selectionData.fillColors
-          .map(color => createColorItem(color, 'fill'))
-          .join('');
+        currentFillColor = selectionData.fillColors[0];
+        fillRow.style.display = 'flex';
+        document.querySelector('#fill-row .copy-btn').classList.add('active');
       } else {
-        fillColorsDiv.style.display = 'none';
+        currentFillColor = null;
+        fillRow.style.display = 'none';
       }
 
-      // Stroke colors
+      // Update stroke color
       if (selectionData.hasStroke && selectionData.strokeColors.length > 0) {
-        strokeColorsDiv.style.display = 'block';
-        strokeColorsList.innerHTML = selectionData.strokeColors
-          .map(color => createColorItem(color, 'stroke'))
-          .join('');
+        currentStrokeColor = selectionData.strokeColors[0];
+        strokeRow.style.display = 'flex';
+        document.querySelector('#stroke-row .copy-btn').classList.add('active');
       } else {
-        strokeColorsDiv.style.display = 'none';
+        currentStrokeColor = null;
+        strokeRow.style.display = 'none';
       }
     }
-
-    // Initialize the UI
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log('Elemental plugin loaded with Figma design system');
-    });
   </script>
 </body>
 </html>

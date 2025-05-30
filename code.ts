@@ -6,8 +6,8 @@
 // You can access browser APIs in the <script> tag inside "ui.html" which has a
 // full browser environment (See https://www.figma.com/plugin-docs/how-plugins-run).
 
-// Show the UI panel
-figma.showUI(__html__, { width: 320, height: 500 });
+// Show the UI panel with the new compact size
+figma.showUI(__html__, { width: 240, height: 280 });
 
 // Helper function to convert RGB to Hex
 function rgbToHex(r: number, g: number, b: number): string {
@@ -38,14 +38,19 @@ function rgbToHsl(r: number, g: number, b: number): string {
   return `hsl(${Math.round(h * 360)}, ${Math.round(s * 100)}%, ${Math.round(l * 100)}%)`;
 }
 
-// Function to get color from a fill
-function getColorFromFill(fill: any): { hex: string, hsl: string, rgb: string } | null {
+// Function to get color from a fill with CSS format support
+function getColorFromFill(fill: any): { hex: string, hsl: string, rgb: string, css: string } | null {
   if (fill.type === 'SOLID' && fill.color) {
     const { r, g, b } = fill.color;
+    const hex = rgbToHex(r, g, b);
+    const hsl = rgbToHsl(r, g, b);
+    const rgb = `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
+    
     return {
-      hex: rgbToHex(r, g, b),
-      hsl: rgbToHsl(r, g, b),
-      rgb: `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`
+      hex,
+      hsl,
+      rgb,
+      css: hex // For CSS, we'll use hex as the default
     };
   }
   return null;
@@ -98,6 +103,56 @@ function analyzeSelection() {
   return analysis;
 }
 
+// Export functionality
+async function exportSelection(scale: number, format: string) {
+  const selection = figma.currentPage.selection;
+  
+  if (selection.length === 0) {
+    figma.notify('Please select a layer to export');
+    return;
+  }
+
+  try {
+    const nodes = selection.slice(); // Copy the selection
+    
+    for (const node of nodes) {
+      // Set export settings based on format
+      let exportSetting: ExportSettings;
+      
+      if (format === 'SVG') {
+        exportSetting = {
+          format: 'SVG',
+          suffix: `@${scale}x`
+        };
+      } else if (format === 'PDF') {
+        exportSetting = {
+          format: 'PDF',
+          suffix: `@${scale}x`
+        };
+      } else {
+        // PNG or JPG
+        exportSetting = {
+          format: format.toLowerCase() as 'PNG' | 'JPG',
+          suffix: `@${scale}x`,
+          constraint: {
+            type: 'SCALE',
+            value: scale
+          }
+        };
+      }
+
+      // Clear existing export settings and add new one
+      node.exportSettings = [exportSetting];
+    }
+
+    figma.notify(`Export settings applied: ${format} at ${scale}x scale`);
+    
+  } catch (error) {
+    console.error('Export error:', error);
+    figma.notify('Error setting up export');
+  }
+}
+
 // Send initial selection data to UI
 figma.ui.postMessage({ type: 'selection-changed', data: analyzeSelection() });
 
@@ -125,6 +180,10 @@ figma.ui.onmessage = (msg: any) => {
           }
         }
       }
+      break;
+
+    case 'export':
+      exportSelection(msg.scale, msg.format);
       break;
 
     case 'close-plugin':
