@@ -1,17 +1,366 @@
-<h2>Rectangle Creator</h2>
-<p>Count: <input id="count" type="number" value="5"></p>
-<button id="create">Create</button>
-<button id="cancel">Cancel</button>
-<script>
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-document.getElementById('create').onclick = () => {
-  const textbox = document.getElementById('count');
-  const count = parseInt(textbox.value, 10);
-  parent.postMessage({ pluginMessage: { type: 'create-shapes', count } }, '*')
-}
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #ffffff;
+      color: #333;
+      font-size: 12px;
+      line-height: 1.4;
+    }
 
-document.getElementById('cancel').onclick = () => {
-  parent.postMessage({ pluginMessage: { type: 'cancel' } }, '*')
-}
+    .container {
+      padding: 16px;
+    }
 
-</script>
+    .header {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 4px;
+    }
+
+    .header p {
+      font-size: 11px;
+      color: #666;
+    }
+
+    .section {
+      margin-bottom: 24px;
+      padding: 16px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border: 1px solid #e1e5e9;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #333;
+      display: flex;
+      align-items: center;
+    }
+
+    .section-title .icon {
+      width: 16px;
+      height: 16px;
+      margin-right: 8px;
+      opacity: 0.7;
+    }
+
+    .disabled {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    .selection-info {
+      background: #e8f4fd;
+      border: 1px solid #1890ff;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 11px;
+    }
+
+    .no-selection {
+      background: #fff7e6;
+      border: 1px solid #fa8c16;
+      color: #ad6800;
+    }
+
+    .color-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+      padding: 8px;
+      background: white;
+      border-radius: 4px;
+      border: 1px solid #d9d9d9;
+    }
+
+    .color-preview {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      margin-right: 8px;
+      border: 1px solid #d9d9d9;
+    }
+
+    .color-info {
+      flex: 1;
+      font-size: 11px;
+    }
+
+    .copy-controls {
+      display: flex;
+      gap: 4px;
+    }
+
+    .copy-btn {
+      padding: 4px 8px;
+      font-size: 10px;
+      border: 1px solid #d9d9d9;
+      background: white;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .copy-btn:hover {
+      background: #f0f0f0;
+      border-color: #1890ff;
+    }
+
+    .copy-btn:active {
+      background: #e6f7ff;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+      margin-top: 8px;
+    }
+
+    .btn-primary {
+      background: #1890ff;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #40a9ff;
+    }
+
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #333;
+      border: 1px solid #d9d9d9;
+    }
+
+    .btn-secondary:hover {
+      background: #e6f7ff;
+      border-color: #1890ff;
+    }
+
+    .coming-soon {
+      font-style: italic;
+      color: #999;
+      font-size: 10px;
+    }
+
+    .success-message {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      background: #52c41a;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 11px;
+      opacity: 0;
+      transform: translateX(100%);
+      transition: all 0.3s;
+      z-index: 1000;
+    }
+
+    .success-message.show {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🧩 Elemental</h1>
+      <p>Advanced Figma Tools</p>
+    </div>
+
+    <!-- Selection Status -->
+    <div id="selection-status" class="selection-info no-selection">
+      Select a layer to see available tools
+    </div>
+
+    <!-- Color Tools Section -->
+    <div class="section" id="color-section">
+      <div class="section-title">
+        🎨 Color Tools
+      </div>
+      
+      <div id="fill-colors" style="display: none;">
+        <div style="font-size: 11px; font-weight: 500; margin-bottom: 8px;">Fill Colors:</div>
+        <div id="fill-colors-list"></div>
+      </div>
+
+      <div id="stroke-colors" style="display: none;">
+        <div style="font-size: 11px; font-weight: 500; margin-bottom: 8px; margin-top: 12px;">Stroke Colors:</div>
+        <div id="stroke-colors-list"></div>
+      </div>
+
+      <div id="no-colors" style="color: #999; font-size: 11px; font-style: italic;">
+        No solid colors found in selection
+      </div>
+    </div>
+
+    <!-- Export Section -->
+    <div class="section disabled">
+      <div class="section-title">
+        📤 Export Tools
+        <span class="coming-soon">(Coming Soon)</span>
+      </div>
+      <button class="btn btn-secondary" disabled>Export Selected</button>
+    </div>
+
+    <!-- Text Tools Section -->
+    <div class="section disabled">
+      <div class="section-title">
+        📝 Text Tools
+        <span class="coming-soon">(Coming Soon)</span>
+      </div>
+      <button class="btn btn-secondary" disabled>Copy Text</button>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="section disabled">
+      <div class="section-title">
+        ⚡ Quick Actions
+        <span class="coming-soon">(Coming Soon)</span>
+      </div>
+      <button class="btn btn-secondary" disabled>Quick Export</button>
+    </div>
+  </div>
+
+  <!-- Success Message -->
+  <div id="success-message" class="success-message"></div>
+
+  <script>
+    let currentSelection = null;
+
+    // Show success message
+    function showSuccess(message) {
+      const successDiv = document.getElementById('success-message');
+      successDiv.textContent = message;
+      successDiv.classList.add('show');
+      setTimeout(() => {
+        successDiv.classList.remove('show');
+      }, 2000);
+    }
+
+    // Copy to clipboard
+    function copyToClipboard(text, format) {
+      navigator.clipboard.writeText(text).then(() => {
+        showSuccess(`${format.toUpperCase()} copied: ${text}`);
+      }).catch(err => {
+        console.error('Failed to copy: ', err);
+      });
+    }
+
+    // Create color item HTML
+    function createColorItem(colorData, type = 'fill') {
+      return `
+        <div class="color-item">
+          <div class="color-preview" style="background-color: ${colorData.hex}"></div>
+          <div class="color-info">
+            <div style="font-weight: 500;">${colorData.hex}</div>
+            <div style="color: #666;">${colorData.hsl}</div>
+          </div>
+          <div class="copy-controls">
+            <button class="copy-btn" onclick="copyColor('${colorData.hex}', 'hex')">HEX</button>
+            <button class="copy-btn" onclick="copyColor('${colorData.hsl}', 'hsl')">HSL</button>
+            <button class="copy-btn" onclick="copyColor('${colorData.rgb}', 'rgb')">RGB</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // Copy color function
+    window.copyColor = function(value, format) {
+      copyToClipboard(value, format);
+    }
+
+    // Handle selection changes
+    window.onmessage = (event) => {
+      const { type, data, value } = event.data.pluginMessage;
+      
+      if (type === 'selection-changed') {
+        currentSelection = data;
+        updateUI(data);
+      } else if (type === 'copy-to-clipboard') {
+        copyToClipboard(value, 'color');
+      }
+    };
+
+    // Update UI based on selection
+    function updateUI(selectionData) {
+      const statusDiv = document.getElementById('selection-status');
+      const colorSection = document.getElementById('color-section');
+      const fillColorsDiv = document.getElementById('fill-colors');
+      const strokeColorsDiv = document.getElementById('stroke-colors');
+      const noColorsDiv = document.getElementById('no-colors');
+      const fillColorsList = document.getElementById('fill-colors-list');
+      const strokeColorsList = document.getElementById('stroke-colors-list');
+
+      if (!selectionData.hasSelection) {
+        statusDiv.className = 'selection-info no-selection';
+        statusDiv.textContent = 'Select a layer to see available tools';
+        colorSection.classList.add('disabled');
+        fillColorsDiv.style.display = 'none';
+        strokeColorsDiv.style.display = 'none';
+        noColorsDiv.style.display = 'block';
+        return;
+      }
+
+      // Update status
+      const count = selectionData.selectionCount;
+      statusDiv.className = 'selection-info';
+      statusDiv.textContent = count === 1 
+        ? `Selected: ${selectionData.nodeType} layer`
+        : `Selected: ${count} layers (showing first)`;
+
+      // Update color section
+      colorSection.classList.remove('disabled');
+      
+      const hasColors = selectionData.hasFill || selectionData.hasStroke;
+      noColorsDiv.style.display = hasColors ? 'none' : 'block';
+
+      // Fill colors
+      if (selectionData.hasFill && selectionData.fillColors.length > 0) {
+        fillColorsDiv.style.display = 'block';
+        fillColorsList.innerHTML = selectionData.fillColors
+          .map(color => createColorItem(color, 'fill'))
+          .join('');
+      } else {
+        fillColorsDiv.style.display = 'none';
+      }
+
+      // Stroke colors
+      if (selectionData.hasStroke && selectionData.strokeColors.length > 0) {
+        strokeColorsDiv.style.display = 'block';
+        strokeColorsList.innerHTML = selectionData.strokeColors
+          .map(color => createColorItem(color, 'stroke'))
+          .join('');
+      } else {
+        strokeColorsDiv.style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>
