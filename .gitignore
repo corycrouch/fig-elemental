@@ -6,3 +6,7 @@ node_modules
 out/
 dist/
 code.js
+
+# Copied from node_modules
+figma-plugin-ds.css
+figma-plugin-ds.js
