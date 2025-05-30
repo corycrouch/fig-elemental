@@ -1,26 +1,138 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!-- Figma Plugin Design System CSS -->
-  <link rel="stylesheet" href="figma-plugin-ds.css">
   <style>
-    body {
-      margin: 0;
-      padding: 0;
-      background: var(--figma-color-bg);
-      font-family: var(--font-stack);
-      width: 240px;
+    /* Figma Plugin Design System - Essential Styles Inlined */
+    :root {
+      --blue: #18a0fb;
+      --green: #1bc47d;
+      --red: #f24822;
+      --black: #000000;
+      --black8: rgba(0, 0, 0, .8);
+      --black3: rgba(0, 0, 0, .3);
+      --white: #ffffff;
+      --white8: rgba(255, 255, 255, .8);
+      --grey: #f0f0f0;
+      --silver: #e5e5e5;
+      --hud: #222222;
+      --hover-fill: rgba(0, 0, 0, .06);
+      
+      --font-stack: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-size-xsmall: 11px;
+      --font-size-small: 12px;
+      --font-weight-normal: 400;
+      --font-weight-medium: 500;
+      --font-weight-bold: 600;
+      --border-radius-small: 2px;
+      --border-radius-med: 5px;
     }
 
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-stack);
+      margin: 0;
+      padding: 0;
+      background: var(--white);
+      width: 240px;
+      color: var(--black);
+    }
+
+    /* Button Styles */
+    .button {
+      align-items: center;
+      border: 2px solid transparent;
+      border-radius: var(--border-radius-med);
+      cursor: pointer;
+      display: flex;
+      font-family: var(--font-stack);
+      font-size: var(--font-size-xsmall);
+      font-weight: var(--font-weight-medium);
+      justify-content: center;
+      letter-spacing: 0.01em;
+      line-height: 1;
+      height: 30px;
+      outline: none;
+      overflow: hidden;
+      padding: 8px 12px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .button--primary {
+      background-color: var(--blue);
+      color: var(--white);
+    }
+
+    .button--primary:enabled:active,
+    .button--primary:enabled:focus {
+      border: 2px solid var(--black);
+    }
+
+    .button--primary:disabled {
+      background-color: var(--black3);
+      color: var(--white8);
+      cursor: not-allowed;
+    }
+
+    /* Select Menu Styles */
+    .select-menu {
+      position: relative;
+      display: block;
+    }
+
+    select.select-menu {
+      appearance: none;
+      background-color: var(--white);
+      border: 1px solid var(--black3);
+      border-radius: var(--border-radius-small);
+      color: var(--black8);
+      cursor: pointer;
+      font-family: var(--font-stack);
+      font-size: var(--font-size-xsmall);
+      font-weight: var(--font-weight-normal);
+      height: 30px;
+      letter-spacing: 0.01em;
+      line-height: 1;
+      outline: none;
+      padding: 0 20px 0 8px;
+      width: 100%;
+      background-image: url("data:image/svg+xml,%3Csvg width='8' height='5' viewBox='0 0 8 5' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0.5L4 4.5L8 0.5' stroke='%23333' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      background-size: 8px 5px;
+    }
+
+    select.select-menu:hover {
+      background-color: var(--hover-fill);
+      border-color: var(--black8);
+    }
+
+    select.select-menu:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 1px var(--blue);
+    }
+
+    select.select-menu:disabled {
+      background-color: var(--white);
+      border-color: var(--black3);
+      color: var(--black3);
+      cursor: not-allowed;
+    }
+
+    /* Plugin specific styles */
     .plugin-section {
       padding: 12px;
-      border-bottom: 1px solid var(--figma-color-border);
+      border-bottom: 1px solid var(--silver);
     }
 
     .section-title {
-      font-size: 11px;
-      font-weight: 500;
-      color: var(--figma-color-text);
+      font-size: var(--font-size-xsmall);
+      font-weight: var(--font-weight-medium);
+      color: var(--black8);
       margin-bottom: 8px;
     }
 
@@ -43,7 +155,7 @@
       display: flex;
       align-items: center;
       margin-bottom: 6px;
-      height: 28px;
+      height: 30px;
     }
 
     .copy-row:last-child {
@@ -57,8 +169,8 @@
 
     .copy-label {
       flex: 1;
-      font-size: 11px;
-      color: var(--figma-color-text);
+      font-size: var(--font-size-xsmall);
+      color: var(--black8);
     }
 
     .copy-indicator {
@@ -74,19 +186,19 @@
       background: none;
       border: none;
       cursor: pointer;
-      padding: 2px;
-      color: var(--figma-color-text-secondary);
-      opacity: 0.6;
-      transition: opacity 0.2s;
+      padding: 4px;
+      color: var(--black3);
+      border-radius: var(--border-radius-small);
+      transition: all 0.2s ease;
     }
 
     .copy-btn:hover {
-      opacity: 1;
+      color: var(--black8);
+      background-color: var(--hover-fill);
     }
 
     .copy-btn.active {
-      opacity: 1;
-      color: var(--figma-color-text);
+      color: var(--blue);
     }
 
     .disabled {
@@ -94,26 +206,17 @@
       pointer-events: none;
     }
 
-    /* Dark theme override */
-    [data-theme="dark"] {
-      --figma-color-bg: #2c2c2c;
-      --figma-color-bg-secondary: #383838;
-      --figma-color-text: #ffffff;
-      --figma-color-text-secondary: #b3b3b3;
-      --figma-color-border: #484848;
-      --figma-color-border-selected: #18a0fb;
-    }
-
     /* Success toast */
     .success-toast {
       position: fixed;
       top: 8px;
       right: 8px;
-      background: var(--figma-color-bg-success, #0fa958);
-      color: white;
+      background: var(--green);
+      color: var(--white);
       padding: 6px 10px;
-      border-radius: 2px;
-      font-size: 11px;
+      border-radius: var(--border-radius-small);
+      font-size: var(--font-size-xsmall);
+      font-weight: var(--font-weight-medium);
       opacity: 0;
       transform: translateX(100%);
       transition: all 0.3s ease;
@@ -126,7 +229,7 @@
     }
   </style>
 </head>
-<body data-theme="dark">
+<body>
   <!-- Export Section -->
   <div class="plugin-section" id="export-section">
     <div class="section-title">Export</div>
@@ -203,18 +306,10 @@
   <!-- Success Toast -->
   <div id="success-toast" class="success-toast"></div>
 
-  <!-- Figma Plugin DS JavaScript -->
-  <script src="figma-plugin-ds.js"></script>
   <script>
     let currentSelection = null;
     let currentFillColor = null;
     let currentStrokeColor = null;
-
-    // Initialize Figma DS components
-    document.addEventListener('DOMContentLoaded', function() {
-      selectMenu.init();
-      console.log('Elemental plugin loaded with Figma DS');
-    });
 
     // Show success message
     function showSuccess(message) {
@@ -325,6 +420,9 @@
         strokeRow.style.display = 'none';
       }
     }
+
+    // Initialize
+    console.log('Elemental plugin loaded with inline styles');
   </script>
 </body>
 </html>

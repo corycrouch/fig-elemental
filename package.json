@@ -40,8 +40,5 @@
         }
       ]
     }
-  },
-  "dependencies": {
-    "figma-plugin-ds": "^1.0.1"
   }
 }
