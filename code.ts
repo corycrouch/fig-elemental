@@ -398,17 +398,24 @@ function updateSelectionInfo() {
         effect.type === 'DROP_SHADOW' || effect.type === 'INNER_SHADOW'
       );
       if (shadowEffects.length > 0) {
-        const shadowEffect = shadowEffects[0];
-        if (shadowEffect.color && shadowEffect.visible !== false) {
-          const { r, g, b } = shadowEffect.color;
-          shadow = {
-            x: shadowEffect.offset?.x || 0,
-            y: shadowEffect.offset?.y || 0,
-            blur: shadowEffect.radius || 0,
-            spread: shadowEffect.spread || 0,
-            color: { r, g, b },
-            type: shadowEffect.type === 'INNER_SHADOW' ? 'INNER' : 'OUTER'
-          };
+        // Collect all shadow effects, not just the first one
+        shadow = shadowEffects
+          .filter((effect: any) => effect.visible !== false && effect.color)
+          .map((shadowEffect: any) => {
+            const { r, g, b } = shadowEffect.color;
+            return {
+              x: shadowEffect.offset?.x || 0,
+              y: shadowEffect.offset?.y || 0,
+              blur: shadowEffect.radius || 0,
+              spread: shadowEffect.spread || 0,
+              color: { r, g, b },
+              type: shadowEffect.type === 'INNER_SHADOW' ? 'INNER' : 'OUTER'
+            };
+          });
+        
+        // Only set shadow if we have valid shadow effects
+        if (shadow.length === 0) {
+          shadow = null;
         }
       }
     }
