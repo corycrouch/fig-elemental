@@ -7,7 +7,7 @@
 // full browser environment (See https://www.figma.com/plugin-docs/how-plugins-run).
 
 // Show the UI panel with the new compact size
-figma.showUI(__html__, { width: 240, height: 280 });
+figma.showUI(__html__, { width: 380, height: 560 });
 
 // Helper function to convert RGB to Hex
 function rgbToHex(r: number, g: number, b: number): string {
@@ -157,7 +157,7 @@ async function exportSelection(scale: number, format: string) {
         
         // Send the file data to UI for download
         figma.ui.postMessage({
-          type: 'download-file',
+          type: 'file-ready',
           filename: filename,
           bytes: Array.from(bytes),
           format: format
@@ -185,7 +185,7 @@ async function exportSelection(scale: number, format: string) {
     
   } catch (error) {
     console.error('Export error:', error);
-    figma.notify('Error during export. Check console for details.');
+    figma.notify('Export failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
   }
 }
 
@@ -317,10 +317,14 @@ figma.on('selectionchange', () => {
   figma.ui.postMessage({ type: 'selection-changed', data: analyzeSelection() });
 });
 
-// Handle messages from UI
-figma.ui.onmessage = (msg: any) => {
-  switch (msg.type) {
-    case 'copy-fill-color':
+// Listen for messages from the UI
+figma.ui.onmessage = async (msg) => {
+  try {
+    if (msg.type === 'export') {
+      await exportSelection(msg.scale, msg.format);
+    } else if (msg.type === 'export-zip') {
+      await batchExportForZip(msg.scale, msg.format);
+    } else if (msg.type === 'copy-fill-color') {
       const selection = figma.currentPage.selection;
       if (selection.length > 0) {
         const node = selection[0];
@@ -336,18 +340,32 @@ figma.ui.onmessage = (msg: any) => {
           }
         }
       }
-      break;
-
-    case 'export':
-      exportSelection(msg.scale, msg.format);
-      break;
-
-    case 'export-zip':
-      batchExportForZip(msg.scale, msg.format);
-      break;
-
-    case 'close-plugin':
+    } else if (msg.type === 'close-plugin') {
       figma.closePlugin();
-      break;
+    }
+  } catch (error) {
+    console.error('Export error:', error);
+    figma.notify('Export failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
   }
 };
+
+// Update selection info
+function updateSelectionInfo() {
+  const selection = figma.currentPage.selection;
+  const selectionCount = selection.length;
+  
+  // Filter for exportable formats
+  const formats = ['PNG', 'JPG', 'SVG', 'PDF'];
+  
+  figma.ui.postMessage({
+    type: 'selection-change',
+    selectionCount: selectionCount,
+    formats: formats
+  });
+}
+
+// Update UI when selection changes
+figma.on('selectionchange', updateSelectionInfo);
+
+// Initial selection update
+updateSelectionInfo();
