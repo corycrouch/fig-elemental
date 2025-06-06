@@ -615,6 +615,27 @@
 
     // Initialize
     console.log('Elemental plugin loaded with inline styles');
+    
+    // Handle format changes to manage scale dropdown  
+    document.getElementById('format-select').addEventListener('change', function() {
+      const format = this.value;
+      const scaleSelect = document.getElementById('scale-select');
+      
+      if (format === 'SVG' || format === 'PDF') {
+        // Vector formats don't need scale - set to 1x and disable
+        scaleSelect.value = '1';
+        scaleSelect.disabled = true;
+        console.log(`${format} selected - scale disabled and set to 1x`);
+      } else {
+        // Raster formats (PNG, JPG) - enable scale selection  
+        scaleSelect.disabled = false;
+        console.log(`${format} selected - scale enabled`);
+      }
+    });
+    
+    // Initialize format handling on page load
+    const initialFormat = document.getElementById('format-select').value;
+    document.getElementById('format-select').dispatchEvent(new Event('change'));
   </script>
 </body>
 </html>
