@@ -281,13 +281,25 @@
       <select class="select-menu" id="color-format-select" style="width: 80px;">
         <option value="hex" selected>HEX</option>
         <option value="rgb">RGB</option>
-        <option value="css">CSS</option>
         <option value="hsl">HSL</option>
         <option value="hsb">HSB</option>
       </select>
 
       <button class="button button--primary" id="fill-btn" disabled style="width: 100px;">
         Fill
+      </button>
+    </div>
+
+    <div class="export-controls" style="margin-bottom: 8px;">
+      <select class="select-menu" id="stroke-format-select" style="width: 80px;">
+        <option value="hex" selected>HEX</option>
+        <option value="rgb">RGB</option>
+        <option value="hsl">HSL</option>
+        <option value="hsb">HSB</option>
+      </select>
+
+      <button class="button button--primary" id="stroke-btn" disabled style="width: 100px;">
+        Stroke
       </button>
     </div>
   </div>
@@ -298,6 +310,7 @@
   <script>
     let currentSelection = null;
     let currentFillColor = null;
+    let currentStrokeColor = null;
 
     // Variables to store zip batch data
     let zipBatchData = [];
@@ -443,10 +456,6 @@
           colorValue = `rgb(${Math.round(currentFillColor.r * 255)}, ${Math.round(currentFillColor.g * 255)}, ${Math.round(currentFillColor.b * 255)})`;
           console.log('Calculated RGB value:', colorValue);
           break;
-        case 'css':
-          colorValue = currentFillColor.hex;
-          console.log('Using CSS (hex) value:', colorValue);
-          break;
         case 'hsl':
           colorValue = rgbToHsl(currentFillColor.r, currentFillColor.g, currentFillColor.b);
           console.log('Calculated HSL value:', colorValue);
@@ -464,7 +473,47 @@
       copyToClipboard(colorValue, format);
     }
 
+    // Stroke color copying function
+    function copyCurrentStrokeColor() {
+      console.log('Stroke button clicked!');
+      console.log('currentStrokeColor:', currentStrokeColor);
+      
+      if (!currentStrokeColor) {
+        console.log('No stroke color - showing error message');
+        showSuccess('No stroke color available');
+        return;
+      }
 
+      const format = document.getElementById('stroke-format-select').value;
+      console.log('Selected stroke format:', format);
+      
+      let colorValue;
+
+      switch (format) {
+        case 'hex':
+          colorValue = currentStrokeColor.hex;
+          console.log('Using stroke hex value:', colorValue);
+          break;
+        case 'rgb':
+          colorValue = `rgb(${Math.round(currentStrokeColor.r * 255)}, ${Math.round(currentStrokeColor.g * 255)}, ${Math.round(currentStrokeColor.b * 255)})`;
+          console.log('Calculated stroke RGB value:', colorValue);
+          break;
+        case 'hsl':
+          colorValue = rgbToHsl(currentStrokeColor.r, currentStrokeColor.g, currentStrokeColor.b);
+          console.log('Calculated stroke HSL value:', colorValue);
+          break;
+        case 'hsb':
+          colorValue = rgbToHsb(currentStrokeColor.r, currentStrokeColor.g, currentStrokeColor.b);
+          console.log('Calculated stroke HSB value:', colorValue);
+          break;
+        default:
+          colorValue = currentStrokeColor.hex;
+          console.log('Using default stroke hex value:', colorValue);
+      }
+
+      console.log('Calling copyToClipboard with stroke:', colorValue, format);
+      copyToClipboard(colorValue, format);
+    }
 
     // Download file from bytes
     function downloadFile(filename, bytes, format) {
@@ -631,7 +680,7 @@
 
     // Handle messages from plugin
     window.onmessage = (event) => {
-      const { type, formats, selectionCount, filename, bytes, format, expectedFiles, zipName, fillColor } = event.data.pluginMessage;
+      const { type, formats, selectionCount, filename, bytes, format, expectedFiles, zipName, fillColor, strokeColor } = event.data.pluginMessage;
 
       if (type === 'selection-change') {
         currentSelectionCount = selectionCount; // Store the selection count
@@ -647,6 +696,18 @@
           currentFillColor = null;
           fillBtn.disabled = true;
           console.log('No fill color available');
+        }
+        
+        // Update stroke color and button state
+        const strokeBtn = document.getElementById('stroke-btn');
+        if (strokeColor) {
+          currentStrokeColor = strokeColor;
+          strokeBtn.disabled = false;
+          console.log('Stroke color available:', strokeColor);
+        } else {
+          currentStrokeColor = null;
+          strokeBtn.disabled = true;
+          console.log('No stroke color available');
         }
         
       } else if (type === 'file-ready') {
@@ -678,6 +739,9 @@
     
     // Fill button click handler
     document.getElementById('fill-btn').onclick = copyCurrentFillColor;
+    
+    // Stroke button click handler
+    document.getElementById('stroke-btn').onclick = copyCurrentStrokeColor;
     
     // Handle format changes to manage scale dropdown  
     document.getElementById('format-select').addEventListener('change', function() {

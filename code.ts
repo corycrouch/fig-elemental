@@ -352,8 +352,11 @@ function updateSelectionInfo() {
   
   // Analyze selection for color data
   let fillColor = null;
+  let strokeColor = null;
+  
   if (selectionCount === 1) {
     const node = selection[0];
+    
     // Check for fills
     if ('fills' in node && node.fills && Array.isArray(node.fills)) {
       const solidFills = node.fills.filter((fill: any) => fill.type === 'SOLID');
@@ -370,13 +373,31 @@ function updateSelectionInfo() {
         }
       }
     }
+    
+    // Check for strokes
+    if ('strokes' in node && node.strokes && Array.isArray(node.strokes)) {
+      const solidStrokes = node.strokes.filter((stroke: any) => stroke.type === 'SOLID');
+      if (solidStrokes.length > 0) {
+        const stroke = solidStrokes[0];
+        if (stroke.color) {
+          const { r, g, b } = stroke.color;
+          strokeColor = {
+            r: r,
+            g: g, 
+            b: b,
+            hex: rgbToHex(r, g, b)
+          };
+        }
+      }
+    }
   }
   
   figma.ui.postMessage({
     type: 'selection-change',
     selectionCount: selectionCount,
     formats: formats,
-    fillColor: fillColor
+    fillColor: fillColor,
+    strokeColor: strokeColor
   });
 }
 
