@@ -257,7 +257,7 @@ async function batchExportForZip(scale: number, format: string) {
             format: 'PDF'
           };
         } else {
-          // PNG or JPG - properly cast the format
+          // PNG or JPG
           const exportFormat = format.toUpperCase() as 'PNG' | 'JPG';
           exportSetting = {
             format: exportFormat,
@@ -268,16 +268,16 @@ async function batchExportForZip(scale: number, format: string) {
           };
         }
 
-        // Actually perform the export
+        // Export the node
         const bytes = await node.exportAsync(exportSetting);
         
         // Create filename
         const nodeName = node.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         const filename = `${nodeName}_${scale}x.${format.toLowerCase()}`;
         
-        // Send the file data to UI for zip collection
+        // Send file data to UI for zip collection
         figma.ui.postMessage({
-          type: 'zip-batch-file',
+          type: 'zip-file-ready',
           filename: filename,
           bytes: Array.from(bytes),
           format: format
@@ -291,120 +291,31 @@ async function batchExportForZip(scale: number, format: string) {
       }
     }
 
-    // Provide detailed feedback
+    // Signal that batch export is complete
+    figma.ui.postMessage({
+      type: 'zip-batch-complete',
+      successCount: successCount,
+      errorCount: errorNodes.length
+    });
+    
     if (successCount > 0) {
       figma.notify(`Prepared ${successCount} files for zip download!`);
     }
     
     if (errorNodes.length > 0) {
       console.warn('Failed to export for zip:', errorNodes);
-      if (successCount === 0) {
-        figma.notify(`Cannot export selected layer types for zip. Try selecting frames, groups, or components.`);
-      }
     }
     
   } catch (error) {
     console.error('Batch export error:', error);
-    figma.notify('Error during batch export. Check console for details.');
+    figma.notify('Batch export failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
   }
 }
 
-
-// Listen for messages from the UI
-figma.ui.onmessage = async (msg) => {
-  try {
-    if (msg.type === 'export') {
-      await exportSelection(msg.scale, msg.format);
-    } else if (msg.type === 'export-zip') {
-      await batchExportForZip(msg.scale, msg.format);
-    } else if (msg.type === 'copy-fill-color') {
-      const selection = figma.currentPage.selection;
-      if (selection.length > 0) {
-        const node = selection[0];
-        if ('fills' in node && node.fills && Array.isArray(node.fills)) {
-          const solidFill = node.fills.find((fill: any) => fill.type === 'SOLID');
-          if (solidFill) {
-            const colorData = getColorFromFill(solidFill);
-            if (colorData) {
-              const format = msg.format || 'hex';
-              const colorValue = colorData[format as keyof typeof colorData];
-              figma.ui.postMessage({ type: 'copy-to-clipboard', value: colorValue });
-            }
-          }
-        }
-      }
-    } else if (msg.type === 'close-plugin') {
-      figma.closePlugin();
-    }
-  } catch (error) {
-    console.error('Export error:', error);
-    figma.notify('Export failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
-  }
-};
-
-// Keep track of the currently watched node to manage 'changes' listeners
-let watchedNode: SceneNode | null = null;
-
-// Listen for selection changes
-figma.on('selectionchange', () => {
-  const currentSelection = figma.currentPage.selection;
-  const newSelectedNode = currentSelection.length === 1 ? currentSelection[0] : null;
-
-  console.log('=== SELECTION CHANGE ===');
-  console.log('Selection count:', currentSelection.length);
-  console.log('New selected node:', newSelectedNode ? `${newSelectedNode.name} (${newSelectedNode.type})` : 'none');
-  console.log('Previous watched node:', watchedNode ? `${watchedNode.name} (${watchedNode.type})` : 'none');
-
-  // Remove listener from previously watched node if it's different or no longer selected
-  if (watchedNode && watchedNode !== newSelectedNode) {
-    console.log('Clearing previous watched node');
-    // Clear reference to old node (this allows garbage collection)
-    watchedNode = null;
-  }
-
-  // If a single node is now selected, set up a 'changes' listener
-  if (newSelectedNode && 'on' in newSelectedNode) {
-    // Check if we are already watching this node to avoid duplicate listeners
-    if (newSelectedNode !== watchedNode) {
-      watchedNode = newSelectedNode;
-      console.log('🎯 Setting up changes listener for:', newSelectedNode.name);
-      console.log('Node type:', newSelectedNode.type);
-      console.log('Node has "on" method:', 'on' in newSelectedNode);
-      
-      // Add the 'changes' listener to the currently selected node
-      try {
-        (newSelectedNode as any).on('changes', () => {
-          console.log('🔥 CHANGES EVENT FIRED for node:', newSelectedNode.name);
-          console.log('Calling updateSelectionInfo...');
-          updateSelectionInfo();
-        });
-        console.log('✅ Changes listener successfully attached');
-      } catch (error) {
-        console.log('❌ Error attaching changes listener:', error);
-      }
-    } else {
-      console.log('Already watching this node, no need to add listener');
-    }
-  } else {
-    console.log('No single node selected or node does not support changes listener');
-    if (newSelectedNode) {
-      console.log('Node exists but does not have "on" method');
-    }
-    watchedNode = null;
-  }
-
-  // Always call updateSelectionInfo for the initial selection change
-  console.log('📞 Calling updateSelectionInfo for selection change');
-  updateSelectionInfo();
-});
-
 // Update selection info
 function updateSelectionInfo() {
-  console.log('📊 updateSelectionInfo() called');
   const selection = figma.currentPage.selection;
   const selectionCount = selection.length;
-  
-  console.log('Current selection count:', selectionCount);
   
   // Filter for exportable formats
   const formats = ['PNG', 'JPG', 'SVG', 'PDF'];
@@ -418,13 +329,11 @@ function updateSelectionInfo() {
   
   if (selectionCount === 1) {
     const node = selection[0];
-    console.log('Analyzing single node:', node.name, `(${node.type})`);
     
     // Check for fills
     if ('fills' in node && node.fills && Array.isArray(node.fills)) {
       const solidFills = node.fills.filter((fill: any) => fill.type === 'SOLID');
       fillCount = solidFills.length;
-      console.log('Found', fillCount, 'solid fills');
       
       // Only provide fillColor if there's exactly one solid fill
       if (fillCount === 1) {
@@ -437,22 +346,14 @@ function updateSelectionInfo() {
             b: b,
             hex: rgbToHex(r, g, b)
           };
-          console.log('Single fill color:', fillColor);
         }
-      } else if (fillCount > 1) {
-        console.log('Multiple fills detected, not setting fillColor');
-      } else {
-        console.log('No solid fills found');
       }
-    } else {
-      console.log('Node has no fills property or fills is not an array');
     }
     
     // Check for strokes
     if ('strokes' in node && node.strokes && Array.isArray(node.strokes)) {
       const solidStrokes = node.strokes.filter((stroke: any) => stroke.type === 'SOLID');
       strokeCount = solidStrokes.length;
-      console.log('Found', strokeCount, 'solid strokes');
       
       // Only provide strokeColor if there's exactly one solid stroke
       if (strokeCount === 1) {
@@ -465,15 +366,8 @@ function updateSelectionInfo() {
             b: b,
             hex: rgbToHex(r, g, b)
           };
-          console.log('Single stroke color:', strokeColor);
         }
-      } else if (strokeCount > 1) {
-        console.log('Multiple strokes detected, not setting strokeColor');
-      } else {
-        console.log('No solid strokes found');
       }
-    } else {
-      console.log('Node has no strokes property or strokes is not an array');
     }
     
     // Check for shadows (effects)
@@ -516,10 +410,35 @@ function updateSelectionInfo() {
     strokeCount: strokeCount
   };
   
-  console.log('📤 Sending message to UI:', messageData);
-  
   figma.ui.postMessage(messageData);
 }
 
+// Message handler for UI communication
+figma.ui.onmessage = async (msg) => {
+  switch (msg.type) {
+    case 'export':
+      await exportSelection(msg.scale, msg.format);
+      break;
+      
+    case 'batch-export':
+      await batchExportForZip(msg.scale, msg.format);
+      break;
+      
+    case 'copy-color':
+      // This is handled in the UI, no backend action needed
+      break;
+      
+    case 'get-selection':
+      updateSelectionInfo();
+      break;
+      
+    default:
+      console.log('Unknown message type:', msg.type);
+  }
+};
+
 // Initial selection update
 updateSelectionInfo();
+
+// Update UI when selection changes
+figma.on('selectionchange', updateSelectionInfo); 
