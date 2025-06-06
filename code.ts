@@ -210,6 +210,105 @@ function canExportNode(node: SceneNode): boolean {
   return exportableTypes.includes(node.type);
 }
 
+// Batch export for zip functionality
+async function batchExportForZip(scale: number, format: string) {
+  const selection = figma.currentPage.selection;
+  
+  if (selection.length === 0) {
+    figma.notify('Please select layers to export as zip');
+    return;
+  }
+
+  if (selection.length === 1) {
+    figma.notify('Select multiple layers to create a zip file');
+    return;
+  }
+
+  try {
+    const nodes = selection.slice(); // Copy the selection
+    const exportableNodes = nodes.filter(canExportNode);
+    
+    if (exportableNodes.length === 0) {
+      figma.notify('No exportable layers selected');
+      return;
+    }
+
+    // Notify UI to start collecting files for zip
+    figma.ui.postMessage({
+      type: 'zip-batch-start',
+      expectedFiles: exportableNodes.length,
+      zipName: `figma-export-${exportableNodes.length}-items.zip`
+    });
+
+    let successCount = 0;
+    let errorNodes: string[] = [];
+    
+    for (const node of exportableNodes) {
+      try {
+        // Set export settings based on format
+        let exportSetting: ExportSettings;
+        
+        if (format === 'SVG') {
+          exportSetting = {
+            format: 'SVG'
+          };
+        } else if (format === 'PDF') {
+          exportSetting = {
+            format: 'PDF'
+          };
+        } else {
+          // PNG or JPG - properly cast the format
+          const exportFormat = format.toUpperCase() as 'PNG' | 'JPG';
+          exportSetting = {
+            format: exportFormat,
+            constraint: {
+              type: 'SCALE',
+              value: scale
+            }
+          };
+        }
+
+        // Actually perform the export
+        const bytes = await node.exportAsync(exportSetting);
+        
+        // Create filename
+        const nodeName = node.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const filename = `${nodeName}_${scale}x.${format.toLowerCase()}`;
+        
+        // Send the file data to UI for zip collection
+        figma.ui.postMessage({
+          type: 'zip-batch-file',
+          filename: filename,
+          bytes: Array.from(bytes),
+          format: format
+        });
+        
+        successCount++;
+        
+      } catch (nodeError) {
+        console.error(`Error exporting node ${node.name}:`, nodeError);
+        errorNodes.push(`${node.name} (${node.type})`);
+      }
+    }
+
+    // Provide detailed feedback
+    if (successCount > 0) {
+      figma.notify(`Prepared ${successCount} files for zip download!`);
+    }
+    
+    if (errorNodes.length > 0) {
+      console.warn('Failed to export for zip:', errorNodes);
+      if (successCount === 0) {
+        figma.notify(`Cannot export selected layer types for zip. Try selecting frames, groups, or components.`);
+      }
+    }
+    
+  } catch (error) {
+    console.error('Batch export error:', error);
+    figma.notify('Error during batch export. Check console for details.');
+  }
+}
+
 // Send initial selection data to UI
 figma.ui.postMessage({ type: 'selection-changed', data: analyzeSelection() });
 
@@ -241,6 +340,10 @@ figma.ui.onmessage = (msg: any) => {
 
     case 'export':
       exportSelection(msg.scale, msg.format);
+      break;
+
+    case 'export-zip':
+      batchExportForZip(msg.scale, msg.format);
       break;
 
     case 'close-plugin':
