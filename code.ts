@@ -1,4 +1,4 @@
-// Elemental Plugin - Advanced Figma Tools
+// Elemental Plugin - Productivity Figma Tools
 // This plugin provides various tools for export, color copying, and text utilities
 
 // This file holds the main code for plugins. Code in this file has access to
