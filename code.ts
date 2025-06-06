@@ -353,6 +353,7 @@ function updateSelectionInfo() {
   // Analyze selection for color data
   let fillColor = null;
   let strokeColor = null;
+  let shadow = null;
   
   if (selectionCount === 1) {
     const node = selection[0];
@@ -390,6 +391,27 @@ function updateSelectionInfo() {
         }
       }
     }
+    
+    // Check for shadows (effects)
+    if ('effects' in node && node.effects && Array.isArray(node.effects)) {
+      const shadowEffects = node.effects.filter((effect: any) => 
+        effect.type === 'DROP_SHADOW' || effect.type === 'INNER_SHADOW'
+      );
+      if (shadowEffects.length > 0) {
+        const shadowEffect = shadowEffects[0];
+        if (shadowEffect.color && shadowEffect.visible !== false) {
+          const { r, g, b } = shadowEffect.color;
+          shadow = {
+            x: shadowEffect.offset?.x || 0,
+            y: shadowEffect.offset?.y || 0,
+            blur: shadowEffect.radius || 0,
+            spread: shadowEffect.spread || 0,
+            color: { r, g, b },
+            type: shadowEffect.type === 'INNER_SHADOW' ? 'INNER' : 'OUTER'
+          };
+        }
+      }
+    }
   }
   
   figma.ui.postMessage({
@@ -397,7 +419,8 @@ function updateSelectionInfo() {
     selectionCount: selectionCount,
     formats: formats,
     fillColor: fillColor,
-    strokeColor: strokeColor
+    strokeColor: strokeColor,
+    shadow: shadow
   });
 }
 
