@@ -114,43 +114,100 @@ async function exportSelection(scale: number, format: string) {
 
   try {
     const nodes = selection.slice(); // Copy the selection
+    let successCount = 0;
+    let errorNodes: string[] = [];
     
     for (const node of nodes) {
-      // Set export settings based on format
-      let exportSetting: ExportSettings;
-      
-      if (format === 'SVG') {
-        exportSetting = {
-          format: 'SVG',
-          suffix: `@${scale}x`
-        };
-      } else if (format === 'PDF') {
-        exportSetting = {
-          format: 'PDF',
-          suffix: `@${scale}x`
-        };
-      } else {
-        // PNG or JPG
-        exportSetting = {
-          format: format.toLowerCase() as 'PNG' | 'JPG',
-          suffix: `@${scale}x`,
-          constraint: {
-            type: 'SCALE',
-            value: scale
-          }
-        };
-      }
+      try {
+        // Check if node can be exported
+        if (!canExportNode(node)) {
+          errorNodes.push(`${node.name} (${node.type})`);
+          continue;
+        }
 
-      // Clear existing export settings and add new one
-      node.exportSettings = [exportSetting];
+        // Set export settings based on format
+        let exportSetting: ExportSettings;
+        
+        if (format === 'SVG') {
+          exportSetting = {
+            format: 'SVG'
+          };
+        } else if (format === 'PDF') {
+          exportSetting = {
+            format: 'PDF'
+          };
+        } else {
+          // PNG or JPG - properly cast the format
+          const exportFormat = format.toUpperCase() as 'PNG' | 'JPG';
+          exportSetting = {
+            format: exportFormat,
+            constraint: {
+              type: 'SCALE',
+              value: scale
+            }
+          };
+        }
+
+        // Actually perform the export
+        const bytes = await node.exportAsync(exportSetting);
+        
+        // Create filename
+        const nodeName = node.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const filename = `${nodeName}_${scale}x.${format.toLowerCase()}`;
+        
+        // Send the file data to UI for download
+        figma.ui.postMessage({
+          type: 'download-file',
+          filename: filename,
+          bytes: Array.from(bytes),
+          format: format
+        });
+        
+        successCount++;
+        
+      } catch (nodeError) {
+        console.error(`Error exporting node ${node.name}:`, nodeError);
+        errorNodes.push(`${node.name} (${node.type})`);
+      }
     }
 
-    figma.notify(`Export settings applied: ${format} at ${scale}x scale`);
+    // Provide detailed feedback
+    if (successCount > 0) {
+      figma.notify(`Exported ${successCount} file(s) successfully!`);
+    }
+    
+    if (errorNodes.length > 0) {
+      console.warn('Failed to export:', errorNodes);
+      if (successCount === 0) {
+        figma.notify(`Cannot export selected layer type(s). Try selecting frames, groups, or components.`);
+      }
+    }
     
   } catch (error) {
     console.error('Export error:', error);
-    figma.notify('Error setting up export');
+    figma.notify('Error during export. Check console for details.');
   }
+}
+
+// Helper function to check if a node can be exported
+function canExportNode(node: SceneNode): boolean {
+  // These node types can typically be exported
+  const exportableTypes = [
+    'FRAME',
+    'GROUP', 
+    'COMPONENT',
+    'COMPONENT_SET',
+    'INSTANCE',
+    'RECTANGLE',
+    'ELLIPSE',
+    'POLYGON',
+    'STAR',
+    'VECTOR',
+    'TEXT',
+    'LINE'
+  ];
+  
+  return exportableTypes.includes(node.type);
 }
 
 // Send initial selection data to UI
