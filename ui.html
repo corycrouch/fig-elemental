@@ -277,46 +277,18 @@
   <div class="plugin-section" id="copy-section">
     <div class="section-title">Copy</div>
     
-    <div class="copy-row" id="fill-row" style="display: none;">
-      <select class="select-menu format-dropdown" id="fill-format">
+    <div class="export-controls" style="margin-bottom: 8px;">
+      <select class="select-menu" id="color-format-select" style="width: 80px;">
         <option value="hex" selected>HEX</option>
-        <option value="hsl">HSL</option>
         <option value="rgb">RGB</option>
         <option value="css">CSS</option>
-      </select>
-      <div class="copy-label">Fill</div>
-      <div class="copy-indicator">
-        <button class="copy-btn" onclick="copyFillColor()">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-            <path d="M8.5 1.5h-5A1.5 1.5 0 002 3v6a1.5 1.5 0 001.5 1.5h5A1.5 1.5 0 0010 9V3a1.5 1.5 0 00-1.5-1.5z"/>
-            <path d="M10.5 4.5h-1v5a2 2 0 01-2 2h-5v1a1.5 1.5 0 001.5 1.5h5a1.5 1.5 0 001.5-1.5v-6z"/>
-          </svg>
-        </button>
-      </div>
-    </div>
-
-    <div class="copy-row" id="stroke-row" style="display: none;">
-      <select class="select-menu format-dropdown" id="stroke-format">
-        <option value="hex" selected>HEX</option>
         <option value="hsl">HSL</option>
-        <option value="rgb">RGB</option>
-        <option value="css">CSS</option>
+        <option value="hsb">HSB</option>
       </select>
-      <div class="copy-label">Stroke</div>
-      <div class="copy-indicator">
-        <button class="copy-btn" onclick="copyStrokeColor()">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-            <path d="M8.5 1.5h-5A1.5 1.5 0 002 3v6a1.5 1.5 0 001.5 1.5h5A1.5 1.5 0 0010 9V3a1.5 1.5 0 00-1.5-1.5z"/>
-            <path d="M10.5 4.5h-1v5a2 2 0 01-2 2h-5v1a1.5 1.5 0 001.5 1.5h5a1.5 1.5 0 001.5-1.5v-6z"/>
-          </svg>
-        </button>
-      </div>
-    </div>
 
-    <div id="no-selection" class="copy-row">
-      <div class="copy-label" style="opacity: 0.6; font-style: italic;">
-        Select a layer to copy colors
-      </div>
+      <button class="button button--primary" id="fill-btn" disabled style="width: 100px;">
+        Fill
+      </button>
     </div>
   </div>
 
@@ -326,7 +298,6 @@
   <script>
     let currentSelection = null;
     let currentFillColor = null;
-    let currentStrokeColor = null;
 
     // Variables to store zip batch data
     let zipBatchData = [];
@@ -345,31 +316,155 @@
 
     // Copy to clipboard
     function copyToClipboard(text, format) {
-      navigator.clipboard.writeText(text).then(() => {
-        showSuccess(`${format.toUpperCase()} copied: ${text}`);
-      }).catch(err => {
-        console.error('Failed to copy: ', err);
+      console.log('copyToClipboard called with:', text, format);
+      console.log('Navigator clipboard available:', !!navigator.clipboard);
+      
+      // Try modern Clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          console.log('Clipboard write successful');
+          showSuccess(`${format.toUpperCase()} copied: ${text}`);
+        }).catch(err => {
+          console.error('Clipboard API failed, trying fallback:', err);
+          copyToClipboardFallback(text, format);
+        });
+      } else {
+        console.log('Clipboard API not available, using fallback');
+        copyToClipboardFallback(text, format);
+      }
+    }
+
+    // Fallback clipboard method for environments without Clipboard API
+    function copyToClipboardFallback(text, format) {
+      try {
+        // Create a temporary textarea element
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        textarea.style.left = '-999999px';
+        textarea.style.top = '-999999px';
+        
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        
+        // Try to copy using execCommand
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        
+        if (successful) {
+          console.log('Fallback clipboard copy successful');
+          showSuccess(`${format.toUpperCase()} copied: ${text}`);
+        } else {
+          console.error('Fallback clipboard copy failed');
+          showSuccess(`Failed to copy ${format.toUpperCase()}`);
+        }
+      } catch (err) {
+        console.error('Fallback clipboard copy error:', err);
         showSuccess(`Failed to copy ${format.toUpperCase()}`);
-      });
-    }
-
-    // Copy fill color
-    function copyFillColor() {
-      if (currentFillColor) {
-        const format = document.getElementById('fill-format').value;
-        const value = currentFillColor[format];
-        copyToClipboard(value, format);
       }
     }
 
-    // Copy stroke color
-    function copyStrokeColor() {
-      if (currentStrokeColor) {
-        const format = document.getElementById('stroke-format').value;
-        const value = currentStrokeColor[format];
-        copyToClipboard(value, format);
-      }
+    // Color conversion utilities
+    function rgbToHex(r, g, b) {
+      const toHex = (value) => {
+        const hex = Math.round(value * 255).toString(16);
+        return hex.length === 1 ? '0' + hex : hex;
+      };
+      return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
     }
+
+    function rgbToHsl(r, g, b) {
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      let h, s, l = (max + min) / 2;
+
+      if (max === min) {
+        h = s = 0;
+      } else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+          case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+          case g: h = (b - r) / d + 2; break;
+          case b: h = (r - g) / d + 4; break;
+        }
+        h /= 6;
+      }
+
+      return `hsl(${Math.round(h * 360)}, ${Math.round(s * 100)}%, ${Math.round(l * 100)}%)`;
+    }
+
+    function rgbToHsb(r, g, b) {
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const delta = max - min;
+      
+      let h = 0;
+      const s = max === 0 ? 0 : delta / max;
+      const brightness = max;
+
+      if (delta !== 0) {
+        switch (max) {
+          case r: h = ((g - b) / delta) % 6; break;
+          case g: h = (b - r) / delta + 2; break;
+          case b: h = (r - g) / delta + 4; break;
+        }
+        h *= 60;
+        if (h < 0) h += 360;
+      }
+
+      return `hsb(${Math.round(h)}, ${Math.round(s * 100)}%, ${Math.round(brightness * 100)}%)`;
+    }
+
+    // New fill color copying function
+    function copyCurrentFillColor() {
+      console.log('Fill button clicked!');
+      console.log('currentFillColor:', currentFillColor);
+      
+      if (!currentFillColor) {
+        console.log('No fill color - showing error message');
+        showSuccess('No fill color available');
+        return;
+      }
+
+      const format = document.getElementById('color-format-select').value;
+      console.log('Selected format:', format);
+      
+      let colorValue;
+
+      switch (format) {
+        case 'hex':
+          colorValue = currentFillColor.hex;
+          console.log('Using hex value:', colorValue);
+          break;
+        case 'rgb':
+          colorValue = `rgb(${Math.round(currentFillColor.r * 255)}, ${Math.round(currentFillColor.g * 255)}, ${Math.round(currentFillColor.b * 255)})`;
+          console.log('Calculated RGB value:', colorValue);
+          break;
+        case 'css':
+          colorValue = currentFillColor.hex;
+          console.log('Using CSS (hex) value:', colorValue);
+          break;
+        case 'hsl':
+          colorValue = rgbToHsl(currentFillColor.r, currentFillColor.g, currentFillColor.b);
+          console.log('Calculated HSL value:', colorValue);
+          break;
+        case 'hsb':
+          colorValue = rgbToHsb(currentFillColor.r, currentFillColor.g, currentFillColor.b);
+          console.log('Calculated HSB value:', colorValue);
+          break;
+        default:
+          colorValue = currentFillColor.hex;
+          console.log('Using default hex value:', colorValue);
+      }
+
+      console.log('Calling copyToClipboard with:', colorValue, format);
+      copyToClipboard(colorValue, format);
+    }
+
+
 
     // Download file from bytes
     function downloadFile(filename, bytes, format) {
@@ -536,11 +631,24 @@
 
     // Handle messages from plugin
     window.onmessage = (event) => {
-      const { type, formats, selectionCount, filename, bytes, format, expectedFiles, zipName } = event.data.pluginMessage;
+      const { type, formats, selectionCount, filename, bytes, format, expectedFiles, zipName, fillColor } = event.data.pluginMessage;
 
       if (type === 'selection-change') {
         currentSelectionCount = selectionCount; // Store the selection count
         updateExportButton(selectionCount, formats);
+        
+        // Update fill color and button state
+        const fillBtn = document.getElementById('fill-btn');
+        if (fillColor) {
+          currentFillColor = fillColor;
+          fillBtn.disabled = false;
+          console.log('Fill color available:', fillColor);
+        } else {
+          currentFillColor = null;
+          fillBtn.disabled = true;
+          console.log('No fill color available');
+        }
+        
       } else if (type === 'file-ready') {
         downloadFile(filename, bytes, format);
       } else if (type === 'zip-batch-start') {
@@ -564,57 +672,12 @@
     };
 
     // Update UI based on selection
-    function updateUI(selectionData) {
-      const exportSection = document.getElementById('export-section');
-      const fillRow = document.getElementById('fill-row');
-      const strokeRow = document.getElementById('stroke-row');
-      const noSelection = document.getElementById('no-selection');
-      const exportBtn = document.getElementById('export-btn');
-      
-
-      if (!selectionData.hasSelection) {
-        // No selection
-        exportSection.classList.add('disabled');
-        exportBtn.disabled = true;
-        fillRow.style.display = 'none';
-        strokeRow.style.display = 'none';
-        noSelection.style.display = 'flex';
-        currentFillColor = null;
-        currentStrokeColor = null;
-        return;
-      }
-
-      // Has selection
-      exportSection.classList.remove('disabled');
-      exportBtn.disabled = false;
-      
-      // Enable zip button only if multiple items are selected
-      
-      noSelection.style.display = 'none';
-
-      // Update fill color
-      if (selectionData.hasFill && selectionData.fillColors.length > 0) {
-        currentFillColor = selectionData.fillColors[0];
-        fillRow.style.display = 'flex';
-        document.querySelector('#fill-row .copy-btn').classList.add('active');
-      } else {
-        currentFillColor = null;
-        fillRow.style.display = 'none';
-      }
-
-      // Update stroke color
-      if (selectionData.hasStroke && selectionData.strokeColors.length > 0) {
-        currentStrokeColor = selectionData.strokeColors[0];
-        strokeRow.style.display = 'flex';
-        document.querySelector('#stroke-row .copy-btn').classList.add('active');
-      } else {
-        currentStrokeColor = null;
-        strokeRow.style.display = 'none';
-      }
-    }
 
     // Initialize
     console.log('Elemental plugin loaded with inline styles');
+    
+    // Fill button click handler
+    document.getElementById('fill-btn').onclick = copyCurrentFillColor;
     
     // Handle format changes to manage scale dropdown  
     document.getElementById('format-select').addEventListener('change', function() {

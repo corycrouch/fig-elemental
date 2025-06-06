@@ -309,13 +309,6 @@ async function batchExportForZip(scale: number, format: string) {
   }
 }
 
-// Send initial selection data to UI
-figma.ui.postMessage({ type: 'selection-changed', data: analyzeSelection() });
-
-// Listen for selection changes
-figma.on('selectionchange', () => {
-  figma.ui.postMessage({ type: 'selection-changed', data: analyzeSelection() });
-});
 
 // Listen for messages from the UI
 figma.ui.onmessage = async (msg) => {
@@ -357,10 +350,33 @@ function updateSelectionInfo() {
   // Filter for exportable formats
   const formats = ['PNG', 'JPG', 'SVG', 'PDF'];
   
+  // Analyze selection for color data
+  let fillColor = null;
+  if (selectionCount === 1) {
+    const node = selection[0];
+    // Check for fills
+    if ('fills' in node && node.fills && Array.isArray(node.fills)) {
+      const solidFills = node.fills.filter((fill: any) => fill.type === 'SOLID');
+      if (solidFills.length > 0) {
+        const fill = solidFills[0];
+        if (fill.color) {
+          const { r, g, b } = fill.color;
+          fillColor = {
+            r: r,
+            g: g, 
+            b: b,
+            hex: rgbToHex(r, g, b)
+          };
+        }
+      }
+    }
+  }
+  
   figma.ui.postMessage({
     type: 'selection-change',
     selectionCount: selectionCount,
-    formats: formats
+    formats: formats,
+    fillColor: fillColor
   });
 }
 
