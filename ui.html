@@ -242,6 +242,37 @@
       opacity: 1;
       transform: translateX(0);
     }
+
+    /* Copy icon styles for buttons */
+    .button {
+      position: relative;
+      justify-content: center;
+    }
+
+    .copy-icon {
+      width: 12px;
+      height: 12px;
+      fill: currentColor;
+      opacity: 0;
+      transform: translateX(-8px);
+      transition: all 0.2s ease;
+      margin-right: 8px;
+      flex-shrink: 0;
+    }
+
+    .button:not(:disabled):hover .copy-icon {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .button-text {
+      transition: all 0.2s ease;
+      transform: translateX(-10px);
+    }
+
+    .button:not(:disabled):hover .button-text {
+      transform: translateX(0);
+    }
   </style>
 </head>
 <body>
@@ -286,7 +317,10 @@
       </select>
 
       <button class="button button--primary" id="fill-btn" disabled style="width: 100px;">
-        Fill
+        <svg class="copy-icon" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H6zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h1v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1v1H2z"/>
+        </svg>
+        <span class="button-text">Fill</span>
       </button>
     </div>
 
@@ -299,7 +333,10 @@
       </select>
 
       <button class="button button--primary" id="stroke-btn" disabled style="width: 100px;">
-        Stroke
+        <svg class="copy-icon" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H6zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h1v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1v1H2z"/>
+        </svg>
+        <span class="button-text">Stroke</span>
       </button>
     </div>
   </div>
