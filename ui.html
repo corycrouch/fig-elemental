@@ -339,17 +339,13 @@
         <span class="button-text">Stroke</span>
       </button>
     </div>
-  </div>
 
-  <!-- Shadow Section -->
-  <div class="plugin-section" id="shadow-section">
-    <div class="section-title">Shadow</div>
-    
-    <button class="button button--primary export-btn" id="shadow-btn" disabled>
+    <!-- Shadow button moved here -->
+    <button class="button button--primary export-btn" id="shadow-btn" disabled style="margin-top: 8px;">
       <svg class="copy-icon" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
         <path d="M4 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V2zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H6zM2 5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-1h1v1a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h1v1H2z"/>
       </svg>
-      <span class="button-text">Copy Shadow CSS</span>
+      <span class="button-text">Shadow</span>
     </button>
   </div>
 
@@ -792,35 +788,97 @@
 
     // Handle messages from plugin
     window.onmessage = (event) => {
-      const { type, formats, selectionCount, filename, bytes, format, expectedFiles, zipName, fillColor, strokeColor, shadow } = event.data.pluginMessage;
+      console.log('📥 UI received message:', event.data.pluginMessage);
+      const { type, formats, selectionCount, filename, bytes, format, expectedFiles, zipName, fillColor, strokeColor, shadow, fillCount, strokeCount } = event.data.pluginMessage;
 
       if (type === 'selection-change') {
+        console.log('🔄 Processing selection-change message');
+        console.log('Selection count:', selectionCount);
+        console.log('Fill count:', fillCount, 'Fill color:', fillColor);
+        console.log('Stroke count:', strokeCount, 'Stroke color:', strokeColor);
+        
         currentSelectionCount = selectionCount; // Store the selection count
         updateExportButton(selectionCount, formats);
         
         // Update fill color and button state
         const fillBtn = document.getElementById('fill-btn');
-        if (fillColor) {
+        console.log('Current fill button state before update:', {
+          disabled: fillBtn.disabled,
+          title: fillBtn.getAttribute('title')
+        });
+        
+        if (fillColor && fillCount === 1) {
           currentFillColor = fillColor;
           fillBtn.disabled = false;
-          console.log('Fill color available:', fillColor);
+          fillBtn.removeAttribute('title'); // Remove tooltip when enabled
+          console.log('✅ Fill button ENABLED - single fill detected');
         } else {
           currentFillColor = null;
           fillBtn.disabled = true;
-          console.log('No fill color available');
+          
+          // Set appropriate tooltip message based on specific condition
+          if (selectionCount === 0) {
+            fillBtn.setAttribute('title', 'Select a layer with one fill');
+            console.log('❌ Fill button DISABLED - no selection');
+          } else if (selectionCount > 1) {
+            fillBtn.setAttribute('title', 'Select a single layer with one fill');
+            console.log('❌ Fill button DISABLED - multiple selection');
+          } else if (fillCount > 1) {
+            fillBtn.setAttribute('title', 'This layer has multiple fills - select a layer with one fill');
+            console.log('❌ Fill button DISABLED - multiple fills');
+          } else if (fillCount === 0) {
+            fillBtn.setAttribute('title', 'This layer has no fills - select a layer with one fill');
+            console.log('❌ Fill button DISABLED - no fills');
+          } else {
+            fillBtn.setAttribute('title', 'Select a layer with one fill');
+            console.log('❌ Fill button DISABLED - other reason');
+          }
         }
+        
+        console.log('Fill button state after update:', {
+          disabled: fillBtn.disabled,
+          title: fillBtn.getAttribute('title')
+        });
         
         // Update stroke color and button state
         const strokeBtn = document.getElementById('stroke-btn');
-        if (strokeColor) {
+        console.log('Current stroke button state before update:', {
+          disabled: strokeBtn.disabled,
+          title: strokeBtn.getAttribute('title')
+        });
+        
+        if (strokeColor && strokeCount === 1) {
           currentStrokeColor = strokeColor;
           strokeBtn.disabled = false;
-          console.log('Stroke color available:', strokeColor);
+          strokeBtn.removeAttribute('title'); // Remove tooltip when enabled
+          console.log('✅ Stroke button ENABLED - single stroke detected');
         } else {
           currentStrokeColor = null;
           strokeBtn.disabled = true;
-          console.log('No stroke color available');
+          
+          // Set appropriate tooltip message based on specific condition
+          if (selectionCount === 0) {
+            strokeBtn.setAttribute('title', 'Select a layer with one stroke');
+            console.log('❌ Stroke button DISABLED - no selection');
+          } else if (selectionCount > 1) {
+            strokeBtn.setAttribute('title', 'Select a single layer with one stroke');
+            console.log('❌ Stroke button DISABLED - multiple selection');
+          } else if (strokeCount > 1) {
+            strokeBtn.setAttribute('title', 'This layer has multiple strokes - select a layer with one stroke');
+            console.log('❌ Stroke button DISABLED - multiple strokes');
+          } else if (strokeCount === 0) {
+            strokeBtn.setAttribute('title', 'This layer has no strokes - select a layer with one stroke');
+            console.log('❌ Stroke button DISABLED - no strokes');
+          } else {
+            strokeBtn.setAttribute('title', 'Select a layer with one stroke');
+            console.log('❌ Stroke button DISABLED - other reason');
+          }
         }
+        
+        console.log('Stroke button state after update:', {
+          disabled: strokeBtn.disabled,
+          title: strokeBtn.getAttribute('title')
+        });
         
         // Update shadow and button state
         const shadowBtn = document.getElementById('shadow-btn');
@@ -828,19 +886,21 @@
         if (shadow) {
           currentShadow = shadow;
           shadowBtn.disabled = false;
+          shadowBtn.removeAttribute('title'); // Remove tooltip when enabled
           
           // Update button text based on number of shadows
           if (Array.isArray(shadow) && shadow.length > 1) {
-            shadowButtonText.textContent = `Copy ${shadow.length} Shadows CSS`;
+            shadowButtonText.textContent = `${shadow.length} Shadows`;
           } else {
-            shadowButtonText.textContent = 'Copy Shadow CSS';
+            shadowButtonText.textContent = 'Shadow';
           }
           
           console.log('Shadow available:', shadow);
         } else {
           currentShadow = null;
           shadowBtn.disabled = true;
-          shadowButtonText.textContent = 'Copy Shadow CSS';
+          shadowBtn.setAttribute('title', 'Select a layer with shadows');
+          shadowButtonText.textContent = 'Shadow';
           console.log('No shadow available');
         }
         

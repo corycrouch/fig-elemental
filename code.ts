@@ -342,10 +342,69 @@ figma.ui.onmessage = async (msg) => {
   }
 };
 
+// Keep track of the currently watched node to manage 'changes' listeners
+let watchedNode: SceneNode | null = null;
+
+// Listen for selection changes
+figma.on('selectionchange', () => {
+  const currentSelection = figma.currentPage.selection;
+  const newSelectedNode = currentSelection.length === 1 ? currentSelection[0] : null;
+
+  console.log('=== SELECTION CHANGE ===');
+  console.log('Selection count:', currentSelection.length);
+  console.log('New selected node:', newSelectedNode ? `${newSelectedNode.name} (${newSelectedNode.type})` : 'none');
+  console.log('Previous watched node:', watchedNode ? `${watchedNode.name} (${watchedNode.type})` : 'none');
+
+  // Remove listener from previously watched node if it's different or no longer selected
+  if (watchedNode && watchedNode !== newSelectedNode) {
+    console.log('Clearing previous watched node');
+    // Clear reference to old node (this allows garbage collection)
+    watchedNode = null;
+  }
+
+  // If a single node is now selected, set up a 'changes' listener
+  if (newSelectedNode && 'on' in newSelectedNode) {
+    // Check if we are already watching this node to avoid duplicate listeners
+    if (newSelectedNode !== watchedNode) {
+      watchedNode = newSelectedNode;
+      console.log('🎯 Setting up changes listener for:', newSelectedNode.name);
+      console.log('Node type:', newSelectedNode.type);
+      console.log('Node has "on" method:', 'on' in newSelectedNode);
+      
+      // Add the 'changes' listener to the currently selected node
+      try {
+        (newSelectedNode as any).on('changes', () => {
+          console.log('🔥 CHANGES EVENT FIRED for node:', newSelectedNode.name);
+          console.log('Calling updateSelectionInfo...');
+          updateSelectionInfo();
+        });
+        console.log('✅ Changes listener successfully attached');
+      } catch (error) {
+        console.log('❌ Error attaching changes listener:', error);
+      }
+    } else {
+      console.log('Already watching this node, no need to add listener');
+    }
+  } else {
+    console.log('No single node selected or node does not support changes listener');
+    if (newSelectedNode) {
+      console.log('Node exists but does not have "on" method');
+    }
+    watchedNode = null;
+  }
+
+  // Always call updateSelectionInfo for the initial selection change
+  console.log('📞 Calling updateSelectionInfo for selection change');
+  updateSelectionInfo();
+});
+
 // Update selection info
 function updateSelectionInfo() {
+  console.log('📊 updateSelectionInfo() called');
   const selection = figma.currentPage.selection;
   const selectionCount = selection.length;
+  
+  console.log('Current selection count:', selectionCount);
   
   // Filter for exportable formats
   const formats = ['PNG', 'JPG', 'SVG', 'PDF'];
@@ -354,14 +413,21 @@ function updateSelectionInfo() {
   let fillColor = null;
   let strokeColor = null;
   let shadow = null;
+  let fillCount = 0;
+  let strokeCount = 0;
   
   if (selectionCount === 1) {
     const node = selection[0];
+    console.log('Analyzing single node:', node.name, `(${node.type})`);
     
     // Check for fills
     if ('fills' in node && node.fills && Array.isArray(node.fills)) {
       const solidFills = node.fills.filter((fill: any) => fill.type === 'SOLID');
-      if (solidFills.length > 0) {
+      fillCount = solidFills.length;
+      console.log('Found', fillCount, 'solid fills');
+      
+      // Only provide fillColor if there's exactly one solid fill
+      if (fillCount === 1) {
         const fill = solidFills[0];
         if (fill.color) {
           const { r, g, b } = fill.color;
@@ -371,14 +437,25 @@ function updateSelectionInfo() {
             b: b,
             hex: rgbToHex(r, g, b)
           };
+          console.log('Single fill color:', fillColor);
         }
+      } else if (fillCount > 1) {
+        console.log('Multiple fills detected, not setting fillColor');
+      } else {
+        console.log('No solid fills found');
       }
+    } else {
+      console.log('Node has no fills property or fills is not an array');
     }
     
     // Check for strokes
     if ('strokes' in node && node.strokes && Array.isArray(node.strokes)) {
       const solidStrokes = node.strokes.filter((stroke: any) => stroke.type === 'SOLID');
-      if (solidStrokes.length > 0) {
+      strokeCount = solidStrokes.length;
+      console.log('Found', strokeCount, 'solid strokes');
+      
+      // Only provide strokeColor if there's exactly one solid stroke
+      if (strokeCount === 1) {
         const stroke = solidStrokes[0];
         if (stroke.color) {
           const { r, g, b } = stroke.color;
@@ -388,8 +465,15 @@ function updateSelectionInfo() {
             b: b,
             hex: rgbToHex(r, g, b)
           };
+          console.log('Single stroke color:', strokeColor);
         }
+      } else if (strokeCount > 1) {
+        console.log('Multiple strokes detected, not setting strokeColor');
+      } else {
+        console.log('No solid strokes found');
       }
+    } else {
+      console.log('Node has no strokes property or strokes is not an array');
     }
     
     // Check for shadows (effects)
@@ -421,18 +505,21 @@ function updateSelectionInfo() {
     }
   }
   
-  figma.ui.postMessage({
+  const messageData = {
     type: 'selection-change',
     selectionCount: selectionCount,
     formats: formats,
     fillColor: fillColor,
     strokeColor: strokeColor,
-    shadow: shadow
-  });
+    shadow: shadow,
+    fillCount: fillCount,
+    strokeCount: strokeCount
+  };
+  
+  console.log('📤 Sending message to UI:', messageData);
+  
+  figma.ui.postMessage(messageData);
 }
-
-// Update UI when selection changes
-figma.on('selectionchange', updateSelectionInfo);
 
 // Initial selection update
 updateSelectionInfo();
