@@ -432,13 +432,45 @@ figma.ui.onmessage = async (msg) => {
       updateSelectionInfo();
       break;
       
+    case 'get-theme':
+      // Get current theme from Figma and send to UI
+      const currentTheme = figma.currentUser?.color === 'DARK' ? 'dark' : 'light';
+      figma.ui.postMessage({
+        type: 'theme-changed',
+        theme: currentTheme
+      });
+      break;
+      
     default:
       console.log('Unknown message type:', msg.type);
   }
 };
 
+// Function to detect and send theme changes
+function sendThemeToUI() {
+  const currentTheme = figma.currentUser?.color === 'DARK' ? 'dark' : 'light';
+  figma.ui.postMessage({
+    type: 'theme-changed',
+    theme: currentTheme
+  });
+}
+
+// Listen for user color mode changes (when available)
+// Note: Figma doesn't provide a direct theme change listener, but we can check periodically
+let lastKnownTheme = figma.currentUser?.color;
+setInterval(() => {
+  const currentTheme = figma.currentUser?.color;
+  if (currentTheme !== lastKnownTheme) {
+    lastKnownTheme = currentTheme;
+    sendThemeToUI();
+  }
+}, 1000); // Check every second
+
 // Initial selection update
 updateSelectionInfo();
+
+// Send initial theme
+sendThemeToUI();
 
 // Update UI when selection changes
 figma.on('selectionchange', updateSelectionInfo); 
