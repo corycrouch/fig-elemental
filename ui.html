@@ -38,21 +38,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       
       let theme = 'light'; // Default
       
-      try {
-        // Check for stored theme first
-        const storedTheme = localStorage.getItem('figma-plugin-theme');
-        if (storedTheme) {
-          theme = storedTheme;
-        }
-      } catch (e) {
-        // Ignore localStorage errors
-      }
-      
-      // Fallback to system preference if no stored theme
-      if (!theme || theme === 'light') {
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-          theme = 'dark';
-        }
+      // Use system preference as initial fallback
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        theme = 'dark';
       }
       
       // Set the data-theme attribute
@@ -67,7 +55,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           padding: 0;
           background-color: ${theme === 'dark' ? darkBg : lightBg} !important;
           overflow: hidden;
-          border: 1px solid #000;
           outline: none;
         }
       `;
@@ -1314,13 +1301,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     function setTheme(theme) {
       console.log(`🎨 Setting theme to: ${theme}`);
       document.documentElement.setAttribute('data-theme', theme);
-      
-      // Store theme preference
-      try {
-        localStorage.setItem('figma-plugin-theme', theme);
-      } catch (e) {
-        console.warn('Could not save theme preference:', e);
-      }
     }
 
     function initializeTheme() {
@@ -1331,18 +1311,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         } 
       }, '*');
       
-      // Fallback to stored preference or system default
+      // Fallback to system default if no theme received from Figma
       setTimeout(() => {
-        try {
-          const storedTheme = localStorage.getItem('figma-plugin-theme');
-          if (storedTheme) {
-            setTheme(storedTheme);
-            return;
-          }
-        } catch (e) {
-          console.warn('Could not read stored theme:', e);
-        }
-        
         // System default fallback
         if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
           setTheme('dark');
