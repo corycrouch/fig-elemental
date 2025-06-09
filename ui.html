@@ -540,6 +540,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     // Variables to store zip batch data
     let zipBatchData = [];
     let expectedZipFiles = 0;
+    let zipCompletionTimer = null;
     let currentSelectionCount = 0; // Track current selection count
 
     // Custom Tooltip System
@@ -959,12 +960,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         // Check if JSZip is available
         if (typeof JSZip === 'undefined') {
           console.error('JSZip is not loaded!');
-          // showSuccess('JSZip library not loaded'); // Removed - library error should be silent
+          showSuccess('JSZip library not loaded');
           return;
         }
         
         console.log('JSZip is available, creating zip...');
         const zip = new JSZip();
+        
+        let filesAdded = 0;
         
         // Add each file to the zip
         for (let i = 0; i < files.length; i++) {
@@ -976,24 +979,65 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             continue;
           }
           
+          // Create proper Uint8Array from bytes array
           const uint8Array = new Uint8Array(file.bytes);
           console.log(`File size: ${uint8Array.length} bytes`);
-          zip.file(file.filename, uint8Array);
+          
+          // Validate the byte array has content
+          if (uint8Array.length === 0) {
+            console.error(`Empty file data for: ${file.filename}`);
+            continue;
+          }
+          
+          // Reduced validation: Only check if file has any content
+          if (uint8Array.length < 1) {
+            console.error(`File has no data: ${file.filename}`);
+            continue;
+          }
+          
+          // Add file to zip - use arraybuffer for better compatibility
+          zip.file(file.filename, uint8Array.buffer, { 
+            binary: true,
+            createFolders: false,
+            date: new Date(),
+            unixPermissions: null,
+            dosPermissions: null
+          });
+          filesAdded++;
         }
         
-        console.log('All files added, generating zip...');
-        // showSuccess('Creating zip file...'); // Removed - only show prepared message
+        if (filesAdded === 0) {
+          throw new Error('No valid files to add to zip');
+        }
         
-        // Generate zip file
+        console.log(`All files added (${filesAdded}/${files.length}), generating zip...`);
+        
+        // Generate zip file with more conservative options for better compatibility
         const content = await zip.generateAsync({ 
           type: 'blob',
           compression: 'DEFLATE',
           compressionOptions: {
-            level: 6
-          }
+            level: 1  // Lower compression level for better compatibility
+          },
+          streamFiles: false,
+          mimeType: 'application/zip',
+          platform: 'DOS'  // Use DOS platform for better compatibility
         });
         
         console.log('Zip generated, size:', content.size);
+        
+        // Validate the generated zip has content
+        if (content.size === 0) {
+          throw new Error('Generated zip file is empty');
+        }
+        
+        // Reduced minimum size check for better compatibility
+        if (content.size < 22) {  // ZIP file minimum size is 22 bytes
+          throw new Error('Generated zip file is too small, may be corrupted');
+        }
+        
+        // Add a small delay to ensure the blob is fully prepared
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         // Create download link
         const url = URL.createObjectURL(content);
@@ -1001,16 +1045,26 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         link.href = url;
         link.download = zipName;
         
+        // Ensure the link is properly configured before triggering download
+        link.style.display = 'none';
+        
         // Trigger download
         document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
         
-        // Clean up
-        URL.revokeObjectURL(url);
+        // Add another small delay before clicking to ensure DOM is ready
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        link.click();
+        
+        // Clean up after a delay to ensure download started properly
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          console.log('Cleanup completed');
+        }, 1000);
         
         console.log('Zip download initiated');
-        // showSuccess(`Downloaded: ${zipName}`); // Removed zip download notification
+        showSuccess(`Downloaded: ${zipName} (${filesAdded} files)`);
       } catch (error) {
         console.error('Zip creation error:', error);
         console.error('Error details:', error.message, error.stack);
@@ -1210,18 +1264,94 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         // Initialize zip batch collection
         zipBatchData = [];
         expectedZipFiles = expectedFiles;
+        
+        // Clear any existing timer
+        if (zipCompletionTimer) {
+          clearTimeout(zipCompletionTimer);
+        }
+        
+        // Set a completion timer to force zip creation if not all files arrive
+        zipCompletionTimer = setTimeout(() => {
+          if (zipBatchData.length > 0 && zipBatchData.length < expectedZipFiles) {
+            console.warn(`Timeout reached. Creating zip with ${zipBatchData.length}/${expectedZipFiles} files`);
+            downloadZipFile(zipBatchData, zipName || 'figma-export.zip');
+          }
+        }, 10000); // 10 second timeout
+        
         console.log(`Starting zip batch, expecting ${expectedFiles} files`);
         // showSuccess(`Preparing ${expectedFiles} files for zip...`); // Removed zip preparation message
       } else if (type === 'zip-file-ready') {
         // Collect file for zip
-        console.log(`Received file: ${filename}, bytes length: ${bytes.length}`);
+        console.log(`Received file: ${filename}, bytes length: ${bytes ? bytes.length : 'undefined'}`);
+        
+        // Validate file data before adding to batch
+        if (!filename) {
+          console.error('Missing filename for zip file');
+          return;
+        }
+        
+        if (!bytes || !Array.isArray(bytes) || bytes.length === 0) {
+          console.error(`Invalid or empty bytes data for file: ${filename}`);
+          return;
+        }
+        
+        // Check if bytes array contains valid data
+        const hasValidData = bytes.some(byte => typeof byte === 'number' && byte >= 0 && byte <= 255);
+        if (!hasValidData) {
+          console.error(`Bytes array contains invalid data for file: ${filename}`);
+          return;
+        }
+        
+        // Additional validation: Check if the file size is reasonable
+        if (bytes.length < 10) {
+          console.error(`File too small, likely corrupted: ${filename} (${bytes.length} bytes)`);
+          return;
+        }
+        
         zipBatchData.push({ filename, bytes, format });
         console.log(`Collected ${zipBatchData.length}/${expectedZipFiles} files`);
         
         // Check if we have all files
         if (zipBatchData.length >= expectedZipFiles) {
-          console.log('All files collected, starting zip creation');
-          downloadZipFile(zipBatchData, zipName || 'figma-export.zip');
+          console.log('All files collected, waiting briefly before starting zip creation...');
+          
+          // Clear the completion timer since we have all files
+          if (zipCompletionTimer) {
+            clearTimeout(zipCompletionTimer);
+            zipCompletionTimer = null;
+          }
+          
+          // Add a small delay to ensure all data is fully processed
+          setTimeout(() => {
+            console.log('Starting zip creation with collected files:', zipBatchData.length);
+            downloadZipFile(zipBatchData, zipName || 'figma-export.zip');
+          }, 200);
+        }
+      } else if (type === 'zip-batch-complete') {
+        // Handle batch export completion signal
+        const { successCount, errorCount } = event.data.pluginMessage;
+        console.log(`Batch export completed: ${successCount} successful, ${errorCount} errors`);
+        
+        // Clear the completion timer
+        if (zipCompletionTimer) {
+          clearTimeout(zipCompletionTimer);
+          zipCompletionTimer = null;
+        }
+        
+        // If we expected more files than we received, handle the discrepancy
+        if (zipBatchData.length < expectedZipFiles) {
+          console.warn(`Expected ${expectedZipFiles} files but only received ${zipBatchData.length}`);
+          
+          // If we have at least some files, proceed with zip creation after a delay
+          if (zipBatchData.length > 0) {
+            console.log('Creating zip with available files...');
+            setTimeout(() => {
+              downloadZipFile(zipBatchData, zipName || 'figma-export.zip');
+            }, 500);
+          } else {
+            console.error('No files received for zip creation');
+            showSuccess('No files were successfully exported');
+          }
         }
       }
     };
