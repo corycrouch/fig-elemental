@@ -423,9 +423,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       transform: translateY(-5px);
       transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
       pointer-events: none;
-      max-width: 270px;
-      word-wrap: break-word;
-      white-space: normal;
+      max-width: 280px;
       box-shadow: var(--shadow-medium);
     }
 
@@ -548,6 +546,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     // Custom Tooltip System
     let tooltipTimeout = null;
     let tooltipHideTimeout = null;
+    let activeTooltip = false; // Track if a tooltip is currently active
     
     // Tooltip configuration
     const TOOLTIP_DELAY = 800; // Delay before showing tooltip (ms)
@@ -1173,13 +1172,30 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       if (tooltipTimeout) clearTimeout(tooltipTimeout);
       if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
       
+      // Hide tooltip immediately to prevent flickering when switching between buttons
+      tooltip.classList.remove('show');
+      
+      // Use shorter delay if a tooltip was recently active
+      const effectiveDelay = activeTooltip ? 200 : delay;
+      
       tooltipTimeout = setTimeout(() => {
+        // Clear any previous content and styles
+        tooltip.textContent = '';
+        tooltip.style.removeProperty('left');
+        tooltip.style.removeProperty('top');
+        tooltip.style.removeProperty('--arrow-left');
+        tooltip.style.removeProperty('width'); // Reset width to auto
+        
         // Set tooltip content
         tooltip.textContent = message;
         
-        // Position tooltip
+        // Force a reflow to ensure content is set before measuring
+        tooltip.style.visibility = 'hidden';
+        tooltip.style.opacity = '1';
         const rect = element.getBoundingClientRect();
         const tooltipRect = tooltip.getBoundingClientRect();
+        tooltip.style.visibility = '';
+        tooltip.style.opacity = '';
         
         // Calculate position (centered above the element)
         const left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
@@ -1194,18 +1210,19 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         // Calculate arrow position relative to button center
         const buttonCenter = rect.left + (rect.width / 2);
         const tooltipLeft = adjustedLeft;
-        const arrowLeft = buttonCenter - tooltipLeft - 4; // -4px to center the 8px wide arrow
+        const arrowLeft = buttonCenter - tooltipLeft; // -4px to center the 8px wide arrow
         
         // Ensure arrow stays within tooltip bounds (with some padding)
         const minArrowLeft = 8; // 8px from left edge
-        const maxArrowLeft = tooltipRect.width - 16; // 8px from right edge
+        const maxArrowLeft = Math.max(tooltipRect.width - 16, 8); // 8px from right edge, but at least 8px
         const clampedArrowLeft = Math.max(minArrowLeft, Math.min(arrowLeft, maxArrowLeft));
         
         // Apply arrow position
         tooltip.style.setProperty('--arrow-left', clampedArrowLeft + 'px');
         
-        // Show tooltip
+        // Show tooltip and mark as active
         tooltip.classList.add('show');
+        activeTooltip = true;
         
         // Auto-hide after duration if specified
         if (TOOLTIP_DURATION > 0) {
@@ -1213,7 +1230,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             hideTooltip();
           }, TOOLTIP_DURATION);
         }
-      }, delay);
+      }, effectiveDelay);
     }
     
     function hideTooltip() {
@@ -1223,8 +1240,20 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       if (tooltipTimeout) clearTimeout(tooltipTimeout);
       if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
       
-      // Hide tooltip
+      // Hide tooltip and mark as inactive
       tooltip.classList.remove('show');
+      activeTooltip = false;
+      
+      // Clear positioning to prevent layout issues
+      setTimeout(() => {
+        if (!tooltip.classList.contains('show')) {
+          tooltip.style.removeProperty('left');
+          tooltip.style.removeProperty('top');
+          tooltip.style.removeProperty('--arrow-left');
+          tooltip.style.removeProperty('width'); // Reset width to auto
+          tooltip.textContent = '';
+        }
+      }, 200); // Wait for transition to complete
     }
     
     // Tooltip helper functions for different button states
@@ -1240,7 +1269,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         case 'stroke':
           return 'Select a layer with one stroke';
         case 'shadow':
-          return 'No shadow available';
+          return 'Select a layer with one or more shadows';
+        case 'export':
+          return 'Select one or more layers';
         default:
           return `No ${buttonType} available`;
       }
@@ -1275,6 +1306,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     document.addEventListener('DOMContentLoaded', function() {
       // Set up tooltip handlers for all buttons
       const buttons = [
+        { id: 'export-btn', type: 'export' },
         { id: 'fill-btn', type: 'fill' },
         { id: 'stroke-btn', type: 'stroke' },
         { id: 'shadow-btn', type: 'shadow' }
