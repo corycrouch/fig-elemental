@@ -874,7 +874,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         // Check if JSZip is available
         if (typeof JSZip === 'undefined') {
           console.error('JSZip is not loaded!');
-          showSuccess('JSZip library not loaded');
+          // showSuccess('JSZip library not loaded'); // Removed - library error should be silent
           return;
         }
         
@@ -897,7 +897,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         }
         
         console.log('All files added, generating zip...');
-        showSuccess('Creating zip file...');
+        // showSuccess('Creating zip file...'); // Removed - only show prepared message
         
         // Generate zip file
         const content = await zip.generateAsync({ 
@@ -1110,7 +1110,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         zipBatchData = [];
         expectedZipFiles = expectedFiles;
         console.log(`Starting zip batch, expecting ${expectedFiles} files`);
-        showSuccess(`Preparing ${expectedFiles} files for zip...`);
+        // showSuccess(`Preparing ${expectedFiles} files for zip...`); // Removed zip preparation message
       } else if (type === 'zip-file-ready') {
         // Collect file for zip
         console.log(`Received file: ${filename}, bytes length: ${bytes.length}`);
