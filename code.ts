@@ -441,6 +441,11 @@ figma.ui.onmessage = async (msg) => {
       });
       break;
       
+    case 'notification':
+      // Handle notification requests from UI
+      figma.notify(msg.message);
+      break;
+      
     default:
       console.log('Unknown message type:', msg.type);
   }

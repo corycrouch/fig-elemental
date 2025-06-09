@@ -554,12 +554,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     
     // Show success message
     function showSuccess(message) {
-      const toast = document.getElementById('success-toast');
-      toast.textContent = message;
-      toast.classList.add('show');
-      setTimeout(() => {
-        toast.classList.remove('show');
-      }, 2500);
+      // Send message to main thread for native Figma notification
+      parent.postMessage({ pluginMessage: { type: 'notification', message: message } }, '*');
     }
 
     // Copy to clipboard
@@ -863,10 +859,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         // Clean up
         URL.revokeObjectURL(url);
         
-        showSuccess(`Downloaded: ${filename}`);
+        // showSuccess(`Downloaded: ${filename}`); // Removed download notification
       } catch (error) {
         console.error('Download error:', error);
-        showSuccess('Failed to download file');
+        // showSuccess('Failed to download file'); // Removed download error notification
       }
     }
 
@@ -929,7 +925,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         URL.revokeObjectURL(url);
         
         console.log('Zip download initiated');
-        showSuccess(`Downloaded: ${zipName}`);
+        // showSuccess(`Downloaded: ${zipName}`); // Removed zip download notification
       } catch (error) {
         console.error('Zip creation error:', error);
         console.error('Error details:', error.message, error.stack);
