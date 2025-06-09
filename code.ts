@@ -415,7 +415,36 @@ function updateSelectionInfo() {
 
 // Message handler for UI communication
 figma.ui.onmessage = async (msg) => {
+  console.log('🔍 Backend received message:', msg.type, msg);
+  
   switch (msg.type) {
+    case 'get-initial-data':
+      console.log('📡 Processing get-initial-data request...');
+      // Load saved settings
+      const savedSettings = await figma.clientStorage.getAsync('pluginSettings') || {
+        scale: '2',
+        format: 'PNG',
+        fillFormat: 'hex',
+        strokeFormat: 'hex'
+      };
+      
+      console.log('💾 Loaded settings from storage:', savedSettings);
+      
+      figma.ui.postMessage({
+        type: 'initial-data',
+        settings: savedSettings
+      });
+      
+      console.log('📤 Sent initial-data message to UI');
+      break;
+      
+    case 'save-settings':
+      console.log('💾 Saving settings to storage:', msg.settings);
+      // Save settings to clientStorage
+      await figma.clientStorage.setAsync('pluginSettings', msg.settings);
+      console.log('✅ Settings saved successfully');
+      break;
+      
     case 'export':
       await exportSelection(msg.scale, msg.format);
       break;
@@ -434,10 +463,10 @@ figma.ui.onmessage = async (msg) => {
       
     case 'get-theme':
       // Get current theme from Figma and send to UI
-      const currentTheme = figma.currentUser?.color === 'DARK' ? 'dark' : 'light';
+      const theme = figma.currentUser?.color === 'DARK' ? 'dark' : 'light';
       figma.ui.postMessage({
         type: 'theme-changed',
-        theme: currentTheme
+        theme: theme
       });
       break;
       
@@ -460,6 +489,21 @@ function sendThemeToUI() {
   });
 }
 
+// Function to send initial data including settings
+async function sendInitialData() {
+  const savedSettings = await figma.clientStorage.getAsync('pluginSettings') || {
+    scale: '2',
+    format: 'PNG',
+    fillFormat: 'hex',
+    strokeFormat: 'hex'
+  };
+  
+  figma.ui.postMessage({
+    type: 'initial-data',
+    settings: savedSettings
+  });
+}
+
 // Listen for user color mode changes (when available)
 // Note: Figma doesn't provide a direct theme change listener, but we can check periodically
 let lastKnownTheme = figma.currentUser?.color;
@@ -471,11 +515,9 @@ setInterval(() => {
   }
 }, 1000); // Check every second
 
-// Initial selection update
+// Initial setup
 updateSelectionInfo();
-
-// Send initial theme
-sendThemeToUI();
+sendInitialData();
 
 // Update UI when selection changes
 figma.on('selectionchange', updateSelectionInfo); 
