@@ -7,7 +7,7 @@
 // full browser environment (See https://www.figma.com/plugin-docs/how-plugins-run).
 
 // Show the UI panel with the new compact size
-figma.showUI(__html__, { width: 240, height: 294 });
+figma.showUI(__html__, { width: 240, height: 294, themeColors: true });
 
 // Helper function to convert RGB to Hex
 function rgbToHex(r: number, g: number, b: number): string {
