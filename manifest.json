@@ -15,5 +15,30 @@
     "allowedDomains": [
       "none"
     ]
-  }
+  },
+  "menu": [
+    {
+      "name": "Open Elemental",
+      "command": "open-panel"
+    },
+    {
+      "separator": true
+    },
+    {
+      "name": "Export",
+      "command": "quick-export"
+    },
+    {
+      "name": "Copy Fill",
+      "command": "quick-copy-fill"
+    },
+    {
+      "name": "Copy Stroke", 
+      "command": "quick-copy-stroke"
+    },
+    {
+      "name": "Copy Shadow",
+      "command": "quick-copy-shadow"
+    }
+  ]
 }

@@ -6,6 +6,335 @@
 // You can access browser APIs in the <script> tag inside "ui.html" which has a
 // full browser environment (See https://www.figma.com/plugin-docs/how-plugins-run).
 
+// Settings keys for persistence
+const SETTINGS_KEYS = {
+  SCALE: 'elemental_scale',
+  FORMAT: 'elemental_format',
+  FILL_FORMAT: 'elemental_fill_format',
+  STROKE_FORMAT: 'elemental_stroke_format'
+};
+
+// Default settings
+const DEFAULT_SETTINGS = {
+  scale: 2,
+  format: 'PNG',
+  fillFormat: 'hex',
+  strokeFormat: 'hex'
+};
+
+// Global settings cache
+let currentSettings = { ...DEFAULT_SETTINGS };
+
+// Load settings from client storage
+async function loadSettings() {
+  try {
+    const scale = await figma.clientStorage.getAsync(SETTINGS_KEYS.SCALE);
+    const format = await figma.clientStorage.getAsync(SETTINGS_KEYS.FORMAT);
+    const fillFormat = await figma.clientStorage.getAsync(SETTINGS_KEYS.FILL_FORMAT);
+    const strokeFormat = await figma.clientStorage.getAsync(SETTINGS_KEYS.STROKE_FORMAT);
+    
+    currentSettings = {
+      scale: scale !== undefined ? Number(scale) : DEFAULT_SETTINGS.scale,
+      format: format || DEFAULT_SETTINGS.format,
+      fillFormat: fillFormat || DEFAULT_SETTINGS.fillFormat,
+      strokeFormat: strokeFormat || DEFAULT_SETTINGS.strokeFormat
+    };
+    
+    console.log('Loaded settings:', currentSettings);
+  } catch (error) {
+    console.error('Error loading settings:', error);
+    currentSettings = { ...DEFAULT_SETTINGS };
+  }
+}
+
+// Save settings to client storage
+async function saveSettings(settings: Partial<typeof currentSettings>) {
+  try {
+    // Update current settings
+    currentSettings = { ...currentSettings, ...settings };
+    
+    // Save to storage
+    if (settings.scale !== undefined) {
+      await figma.clientStorage.setAsync(SETTINGS_KEYS.SCALE, settings.scale);
+    }
+    if (settings.format !== undefined) {
+      await figma.clientStorage.setAsync(SETTINGS_KEYS.FORMAT, settings.format);
+    }
+    if (settings.fillFormat !== undefined) {
+      await figma.clientStorage.setAsync(SETTINGS_KEYS.FILL_FORMAT, settings.fillFormat);
+    }
+    if (settings.strokeFormat !== undefined) {
+      await figma.clientStorage.setAsync(SETTINGS_KEYS.STROKE_FORMAT, settings.strokeFormat);
+    }
+    
+    console.log('Saved settings:', currentSettings);
+  } catch (error) {
+    console.error('Error saving settings:', error);
+  }
+}
+
+// Command handler
+if (figma.command) {
+  handleCommand(figma.command);
+} else {
+  // Show UI panel by default (when opened without command)
+  openPanel();
+}
+
+// Handle specific commands
+async function handleCommand(command: string) {
+  console.log('Handling command:', command);
+  
+  // Load settings first
+  await loadSettings();
+  
+  switch (command) {
+    case 'open-panel':
+      openPanel();
+      break;
+      
+    case 'quick-export':
+      await quickExport();
+      break;
+      
+    case 'quick-copy-fill':
+      await quickCopyFill();
+      break;
+      
+    case 'quick-copy-stroke':
+      await quickCopyStroke();
+      break;
+      
+    case 'quick-copy-shadow':
+      await quickCopyShadow();
+      break;
+      
+    default:
+      console.log('Unknown command:', command);
+      openPanel();
+  }
+}
+
+// Open the main panel
+function openPanel() {
+  figma.showUI(__html__, { width: 240, height: 294, themeColors: true });
+  
+  // Set up event listeners for UI interactions
+  setupUIEventListeners();
+  
+  // Load and send settings to UI
+  loadSettings().then(() => {
+    sendSettingsToUI();
+    updateSelectionInfo();
+    sendThemeToUI();
+  });
+}
+
+// Send current settings to UI
+function sendSettingsToUI() {
+  figma.ui.postMessage({
+    type: 'settings-loaded',
+    settings: currentSettings
+  });
+}
+
+// Quick export function
+async function quickExport() {
+  const selection = figma.currentPage.selection;
+  
+  if (selection.length === 0) {
+    figma.notify('Please select a layer to export');
+    return;
+  }
+  
+  if (selection.length === 1) {
+    await exportSelection(currentSettings.scale, currentSettings.format);
+  } else {
+    figma.notify(`Exporting ${selection.length} layers...`);
+    await batchExportForZip(currentSettings.scale, currentSettings.format);
+  }
+}
+
+// Quick copy fill function
+async function quickCopyFill() {
+  const selection = figma.currentPage.selection;
+  
+  if (selection.length !== 1) {
+    figma.notify('Please select exactly one layer');
+    return;
+  }
+  
+  const node = selection[0];
+  
+  // Check for fills
+  if (!('fills' in node) || !node.fills || !Array.isArray(node.fills)) {
+    figma.notify('Selected layer has no fill');
+    return;
+  }
+  
+  const solidFills = node.fills.filter((fill: any) => fill.type === 'SOLID');
+  
+  if (solidFills.length === 0) {
+    figma.notify('Selected layer has no solid fill');
+    return;
+  }
+  
+  if (solidFills.length > 1) {
+    figma.notify('Selected layer has multiple fills - please select a layer with one fill');
+    return;
+  }
+  
+  const fill = solidFills[0];
+  if (!fill.color) {
+    figma.notify('Fill color not available');
+    return;
+  }
+  
+  const colorData = getColorFromFill(fill);
+  if (!colorData) {
+    figma.notify('Unable to extract fill color');
+    return;
+  }
+  
+  const format = currentSettings.fillFormat;
+  const colorValue = colorData[format as keyof typeof colorData];
+  
+  // Show UI briefly to handle clipboard copy
+  figma.showUI(__html__, { width: 1, height: 1, visible: false });
+  
+  figma.ui.postMessage({
+    type: 'quick-copy-to-clipboard',
+    value: colorValue,
+    label: `Fill (${format})`
+  });
+  
+  // Close UI after a short delay
+  setTimeout(() => {
+    figma.closePlugin();
+  }, 100);
+}
+
+// Quick copy stroke function
+async function quickCopyStroke() {
+  const selection = figma.currentPage.selection;
+  
+  if (selection.length !== 1) {
+    figma.notify('Please select exactly one layer');
+    return;
+  }
+  
+  const node = selection[0];
+  
+  // Check for strokes
+  if (!('strokes' in node) || !node.strokes || !Array.isArray(node.strokes)) {
+    figma.notify('Selected layer has no stroke');
+    return;
+  }
+  
+  const solidStrokes = node.strokes.filter((stroke: any) => stroke.type === 'SOLID');
+  
+  if (solidStrokes.length === 0) {
+    figma.notify('Selected layer has no solid stroke');
+    return;
+  }
+  
+  if (solidStrokes.length > 1) {
+    figma.notify('Selected layer has multiple strokes - please select a layer with one stroke');
+    return;
+  }
+  
+  const stroke = solidStrokes[0];
+  if (!stroke.color) {
+    figma.notify('Stroke color not available');
+    return;
+  }
+  
+  const colorData = getColorFromFill(stroke);
+  if (!colorData) {
+    figma.notify('Unable to extract stroke color');
+    return;
+  }
+  
+  const format = currentSettings.strokeFormat;
+  const colorValue = colorData[format as keyof typeof colorData];
+  
+  // Show UI briefly to handle clipboard copy
+  figma.showUI(__html__, { width: 1, height: 1, visible: false });
+  
+  figma.ui.postMessage({
+    type: 'quick-copy-to-clipboard',
+    value: colorValue,
+    label: `Stroke (${format})`
+  });
+  
+  // Close UI after a short delay
+  setTimeout(() => {
+    figma.closePlugin();
+  }, 100);
+}
+
+// Quick copy shadow function
+async function quickCopyShadow() {
+  const selection = figma.currentPage.selection;
+  
+  if (selection.length !== 1) {
+    figma.notify('Please select exactly one layer');
+    return;
+  }
+  
+  const node = selection[0];
+  
+  // Check for shadow effects
+  if (!('effects' in node) || !node.effects || !Array.isArray(node.effects)) {
+    figma.notify('Selected layer has no effects');
+    return;
+  }
+  
+  const shadowEffects = node.effects.filter((effect: any) => 
+    (effect.type === 'DROP_SHADOW' || effect.type === 'INNER_SHADOW') && 
+    effect.visible !== false && 
+    effect.color
+  );
+  
+  if (shadowEffects.length === 0) {
+    figma.notify('Selected layer has no visible shadows');
+    return;
+  }
+  
+  // Convert shadows to CSS format
+  const shadows = shadowEffects.map((shadowEffect: any) => {
+    const { r, g, b } = shadowEffect.color;
+    const x = shadowEffect.offset?.x || 0;
+    const y = shadowEffect.offset?.y || 0;
+    const blur = shadowEffect.radius || 0;
+    const spread = shadowEffect.spread || 0;
+    
+    const color = `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${shadowEffect.color.a !== undefined ? shadowEffect.color.a : 1})`;
+    
+    if (shadowEffect.type === 'INNER_SHADOW') {
+      return `inset ${x}px ${y}px ${blur}px ${spread}px ${color}`;
+    } else {
+      return `${x}px ${y}px ${blur}px ${spread}px ${color}`;
+    }
+  });
+  
+  const cssValue = shadows.join(', ');
+  
+  // Show UI briefly to handle clipboard copy
+  figma.showUI(__html__, { width: 1, height: 1, visible: false });
+  
+  figma.ui.postMessage({
+    type: 'quick-copy-to-clipboard',
+    value: cssValue,
+    label: 'Shadow (CSS)'
+  });
+  
+  // Close UI after a short delay
+  setTimeout(() => {
+    figma.closePlugin();
+  }, 100);
+}
+
 // Show the UI panel with the new compact size
 figma.showUI(__html__, { width: 240, height: 294, themeColors: true });
 
@@ -418,10 +747,14 @@ figma.ui.onmessage = async (msg) => {
   switch (msg.type) {
     case 'export':
       await exportSelection(msg.scale, msg.format);
+      // Save scale and format settings
+      await saveSettings({ scale: msg.scale, format: msg.format });
       break;
       
     case 'batch-export':
       await batchExportForZip(msg.scale, msg.format);
+      // Save scale and format settings
+      await saveSettings({ scale: msg.scale, format: msg.format });
       break;
       
     case 'copy-color':
@@ -430,6 +763,25 @@ figma.ui.onmessage = async (msg) => {
       
     case 'get-selection':
       updateSelectionInfo();
+      break;
+      
+    case 'save-settings':
+      // Save user settings to persistence
+      await saveSettings(msg.settings);
+      break;
+      
+    case 'load-settings':
+      // Load and send settings to UI
+      await loadSettings();
+      sendSettingsToUI();
+      break;
+      
+    case 'quick-copy-to-clipboard':
+      // Handle quick copy from commands - show notification and close
+      figma.notify(`✓ Copied ${msg.label}: ${msg.value}`);
+      setTimeout(() => {
+        figma.closePlugin();
+      }, 50);
       break;
       
     case 'get-theme':
@@ -463,19 +815,25 @@ function sendThemeToUI() {
 // Listen for user color mode changes (when available)
 // Note: Figma doesn't provide a direct theme change listener, but we can check periodically
 let lastKnownTheme = figma.currentUser?.color;
-setInterval(() => {
-  const currentTheme = figma.currentUser?.color;
-  if (currentTheme !== lastKnownTheme) {
-    lastKnownTheme = currentTheme;
-    sendThemeToUI();
-  }
-}, 1000); // Check every second
 
-// Initial selection update
-updateSelectionInfo();
+// Only set up periodic theme checking and selection updates when UI is showing
+function setupUIEventListeners() {
+  // Update UI when selection changes
+  figma.on('selectionchange', updateSelectionInfo);
+  
+  // Check for theme changes periodically
+  const themeCheckInterval = setInterval(() => {
+    const currentTheme = figma.currentUser?.color;
+    if (currentTheme !== lastKnownTheme) {
+      lastKnownTheme = currentTheme;
+      sendThemeToUI();
+    }
+  }, 1000); // Check every second
+  
+  // Clean up interval when plugin closes
+  figma.on('close', () => {
+    clearInterval(themeCheckInterval);
+  });
+}
 
-// Send initial theme
-sendThemeToUI();
-
-// Update UI when selection changes
-figma.on('selectionchange', updateSelectionInfo); 
+// Note: Event listeners are set up in openPanel() function when UI is displayed 

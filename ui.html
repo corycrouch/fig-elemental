@@ -538,6 +538,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     let currentStrokeColor = null;
     let currentShadow = null; // Add shadow variable
 
+    // Settings preferences for quick actions
+    let fillFormatPreference = 'hex';
+    let strokeFormatPreference = 'hex';
+
     // Variables to store zip batch data
     let zipBatchData = [];
     let expectedZipFiles = 0;
@@ -956,6 +960,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       
       console.log('Export button clicked:', { scale, format, selectionCount: currentSelectionCount });
       
+      // Save export settings when used
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'save-settings', 
+          settings: { scale, format }
+        } 
+      }, '*');
+      
       if (currentSelectionCount > 1) {
         // Multiple selection - export as zip
         console.log('Exporting multiple layers as zip');
@@ -979,12 +991,55 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       }
     };
 
+    // Add event listeners to save settings when changed
+    document.getElementById('scale-select').addEventListener('change', function() {
+      const scale = parseInt(this.value);
+      const format = document.getElementById('format-select').value;
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'save-settings', 
+          settings: { scale, format }
+        } 
+      }, '*');
+    });
+
+    document.getElementById('format-select').addEventListener('change', function() {
+      const format = this.value;
+      const scale = parseInt(document.getElementById('scale-select').value);
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'save-settings', 
+          settings: { scale, format }
+        } 
+      }, '*');
+    });
+
+    document.getElementById('color-format-select').addEventListener('change', function() {
+      fillFormatPreference = this.value;
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'save-settings', 
+          settings: { fillFormat: this.value }
+        } 
+      }, '*');
+    });
+
+    document.getElementById('stroke-format-select').addEventListener('change', function() {
+      strokeFormatPreference = this.value;
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'save-settings', 
+          settings: { strokeFormat: this.value }
+        } 
+      }, '*');
+    });
+
     // Export as Zip functionality
 
     // Handle messages from plugin
     window.onmessage = (event) => {
       console.log('📥 UI received message:', event.data.pluginMessage);
-      const { type, formats, selectionCount, filename, bytes, format, expectedFiles, zipName, fillColor, strokeColor, shadow, fillCount, strokeCount } = event.data.pluginMessage;
+      const { type, formats, selectionCount, filename, bytes, format, expectedFiles, zipName, fillColor, strokeColor, shadow, fillCount, strokeCount, settings, value, label } = event.data.pluginMessage;
 
       if (type === 'selection-change') {
         console.log('🔄 Processing selection-change message');
@@ -995,88 +1050,27 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         currentSelectionCount = selectionCount; // Store the selection count
         updateExportButton(selectionCount, formats);
         
-        // Update fill color and button state
-        const fillBtn = document.getElementById('fill-btn');
-        console.log('Current fill button state before update:', {
-          disabled: fillBtn.disabled,
-          title: fillBtn.getAttribute('title')
-        });
-        
-        if (fillColor && fillCount === 1) {
-          currentFillColor = fillColor;
-          fillBtn.disabled = false;
-          // fillBtn.removeAttribute('title'); // Remove tooltip when enabled - REMOVED: Using custom tooltips only
-          console.log('✅ Fill button ENABLED - single fill detected');
-        } else {
-          currentFillColor = null;
-          fillBtn.disabled = true;
-          
-          // Set appropriate tooltip message based on specific condition - REMOVED: Using custom tooltips only
-          // if (selectionCount === 0) {
-          //   fillBtn.setAttribute('title', 'Select a layer with one fill');
-          //   console.log('❌ Fill button DISABLED - no selection');
-          // } else if (selectionCount > 1) {
-          //   fillBtn.setAttribute('title', 'Select a single layer with one fill');
-          //   console.log('❌ Fill button DISABLED - multiple selection');
-          // } else if (fillCount > 1) {
-          //   fillBtn.setAttribute('title', 'This layer has multiple fills - select a layer with one fill');
-          //   console.log('❌ Fill button DISABLED - multiple fills');
-          // } else if (fillCount === 0) {
-          //   fillBtn.setAttribute('title', 'This layer has no fills - select a layer with one fill');
-          //   console.log('❌ Fill button DISABLED - no fills');
-          // } else {
-          //   fillBtn.setAttribute('title', 'Select a layer with one fill');
-          //   console.log('❌ Fill button DISABLED - other reason');
-          // }
-          
-          console.log('❌ Fill button DISABLED');
-        }
-        
-        console.log('Fill button state after update:', {
-          disabled: fillBtn.disabled,
-          title: fillBtn.getAttribute('title')
-        });
+        // Update fill button state
+        updateFillButton(fillColor, fillCount, selectionCount);
         
         // Update stroke color and button state
         const strokeBtn = document.getElementById('stroke-btn');
         console.log('Current stroke button state before update:', {
-          disabled: strokeBtn.disabled,
-          title: strokeBtn.getAttribute('title')
+          disabled: strokeBtn.disabled
         });
         
-        if (strokeColor && strokeCount === 1) {
+        if (selectionCount === 1 && strokeCount === 1 && strokeColor) {
           currentStrokeColor = strokeColor;
           strokeBtn.disabled = false;
-          // strokeBtn.removeAttribute('title'); // Remove tooltip when enabled - REMOVED: Using custom tooltips only
           console.log('✅ Stroke button ENABLED - single stroke detected');
         } else {
           currentStrokeColor = null;
           strokeBtn.disabled = true;
-          
-          // Set appropriate tooltip message based on specific condition - REMOVED: Using custom tooltips only
-          // if (selectionCount === 0) {
-          //   strokeBtn.setAttribute('title', 'Select a layer with one stroke');
-          //   console.log('❌ Stroke button DISABLED - no selection');
-          // } else if (selectionCount > 1) {
-          //   strokeBtn.setAttribute('title', 'Select a single layer with one stroke');
-          //   console.log('❌ Stroke button DISABLED - multiple selection');
-          // } else if (strokeCount > 1) {
-          //   strokeBtn.setAttribute('title', 'This layer has multiple strokes - select a layer with one stroke');
-          //   console.log('❌ Stroke button DISABLED - multiple strokes');
-          // } else if (strokeCount === 0) {
-          //   strokeBtn.setAttribute('title', 'This layer has no strokes - select a layer with one stroke');
-          //   console.log('❌ Stroke button DISABLED - no strokes');
-          // } else {
-          //   strokeBtn.setAttribute('title', 'Select a layer with one stroke');
-          //   console.log('❌ Stroke button DISABLED - other reason');
-          // }
-          
           console.log('❌ Stroke button DISABLED');
         }
         
         console.log('Stroke button state after update:', {
-          disabled: strokeBtn.disabled,
-          title: strokeBtn.getAttribute('title')
+          disabled: strokeBtn.disabled
         });
         
         // Update shadow and button state
@@ -1085,7 +1079,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         if (shadow) {
           currentShadow = shadow;
           shadowBtn.disabled = false;
-          // shadowBtn.removeAttribute('title'); // Remove tooltip when enabled - REMOVED: Using custom tooltips only
           
           // Update button text based on number of shadows
           if (Array.isArray(shadow) && shadow.length > 1) {
@@ -1098,10 +1091,37 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         } else {
           currentShadow = null;
           shadowBtn.disabled = true;
-          // shadowBtn.setAttribute('title', 'Select a layer with shadows'); - REMOVED: Using custom tooltips only
           shadowButtonText.textContent = 'Shadow';
           console.log('No shadow available');
         }
+        
+      } else if (type === 'settings-loaded') {
+        // Load settings into UI controls
+        console.log('Loading settings:', settings);
+        
+        if (settings.scale) {
+          document.getElementById('scale-select').value = settings.scale;
+        }
+        if (settings.format) {
+          document.getElementById('format-select').value = settings.format;
+          // Trigger change event to update scale dropdown state
+          document.getElementById('format-select').dispatchEvent(new Event('change'));
+        }
+        
+        // Store format preferences for quick copy
+        if (settings.fillFormat) {
+          fillFormatPreference = settings.fillFormat;
+          document.getElementById('color-format-select').value = settings.fillFormat;
+        }
+        if (settings.strokeFormat) {
+          strokeFormatPreference = settings.strokeFormat;
+          document.getElementById('stroke-format-select').value = settings.strokeFormat;
+        }
+        
+      } else if (type === 'quick-copy-to-clipboard') {
+        // Handle quick copy from command menu
+        console.log('Quick copying to clipboard:', label, value);
+        copyToClipboard(value, label);
         
       } else if (type === 'file-ready') {
         downloadFile(filename, bytes, format);
@@ -1110,7 +1130,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         zipBatchData = [];
         expectedZipFiles = expectedFiles;
         console.log(`Starting zip batch, expecting ${expectedFiles} files`);
-        // showSuccess(`Preparing ${expectedFiles} files for zip...`); // Removed zip preparation message
       } else if (type === 'zip-file-ready') {
         // Collect file for zip
         console.log(`Received file: ${filename}, bytes length: ${bytes.length}`);
@@ -1125,265 +1144,113 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       }
     };
 
-    // Update UI based on selection
-
-    // Initialize
-    console.log('Elemental plugin loaded with inline styles');
-    
-    // Fill button click handler
-    document.getElementById('fill-btn').onclick = copyCurrentFillColor;
-    
-    // Stroke button click handler
-    document.getElementById('stroke-btn').onclick = copyCurrentStrokeColor;
-    
-    // Shadow button click handler
-    document.getElementById('shadow-btn').onclick = copyCurrentShadow;
-    
-    // Handle format changes to manage scale dropdown  
-    document.getElementById('format-select').addEventListener('change', function() {
-      const format = this.value;
-      const scaleSelect = document.getElementById('scale-select');
+    // Update fill button to use saved format preference for quick copy
+    function copyCurrentFillColor() {
+      console.log('Fill button clicked!');
+      console.log('currentFillColor:', currentFillColor);
       
-      if (format === 'SVG' || format === 'PDF') {
-        // Vector formats don't need scale - set to 1x and disable
-        scaleSelect.value = '1';
-        scaleSelect.disabled = true;
-        console.log(`${format} selected - scale disabled and set to 1x`);
-      } else {
-        // Raster formats (PNG, JPG) - enable scale selection  
-        scaleSelect.disabled = false;
-        console.log(`${format} selected - scale enabled`);
+      if (!currentFillColor) {
+        console.log('No fill color - showing error message');
+        showSuccess('No fill color available');
+        return;
       }
-    });
-    
-    // Initialize format handling on page load
-    const initialFormat = document.getElementById('format-select').value;
-    document.getElementById('format-select').dispatchEvent(new Event('change'));
 
-    // Custom Tooltip System
-    function showTooltip(element, message, delay = TOOLTIP_DELAY) {
-      const tooltip = document.getElementById('custom-tooltip');
+      // Use saved preference instead of current UI selection
+      const format = fillFormatPreference;
+      console.log('Using saved fill format preference:', format);
       
-      // Clear any existing timeouts
-      if (tooltipTimeout) clearTimeout(tooltipTimeout);
-      if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
-      
-      // Hide tooltip immediately to prevent flickering when switching between buttons
-      tooltip.classList.remove('show');
-      
-      // Use shorter delay if a tooltip was recently active
-      const effectiveDelay = activeTooltip ? 200 : delay;
-      
-      tooltipTimeout = setTimeout(() => {
-        // Clear any previous content and styles
-        tooltip.textContent = '';
-        tooltip.style.removeProperty('left');
-        tooltip.style.removeProperty('top');
-        tooltip.style.removeProperty('--arrow-left');
-        tooltip.style.removeProperty('width'); // Reset width to auto
-        
-        // Set tooltip content
-        tooltip.textContent = message;
-        
-        // Force a reflow to ensure content is set before measuring
-        tooltip.style.visibility = 'hidden';
-        tooltip.style.opacity = '1';
-        const rect = element.getBoundingClientRect();
-        const tooltipRect = tooltip.getBoundingClientRect();
-        tooltip.style.visibility = '';
-        tooltip.style.opacity = '';
-        
-        // Calculate position (centered above the element)
-        const left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
-        const top = rect.top - tooltipRect.height - 10; // 10px gap
-        
-        // Adjust if tooltip would go off-screen
-        const adjustedLeft = Math.max(8, Math.min(left, window.innerWidth - tooltipRect.width - 8));
-        
-        tooltip.style.left = adjustedLeft + 'px';
-        tooltip.style.top = top + 'px';
-        
-        // Calculate arrow position relative to button center
-        const buttonCenter = rect.left + (rect.width / 2);
-        const tooltipLeft = adjustedLeft;
-        const arrowLeft = buttonCenter - tooltipLeft; // -4px to center the 8px wide arrow
-        
-        // Ensure arrow stays within tooltip bounds (with some padding)
-        const minArrowLeft = 8; // 8px from left edge
-        const maxArrowLeft = Math.max(tooltipRect.width - 16, 8); // 8px from right edge, but at least 8px
-        const clampedArrowLeft = Math.max(minArrowLeft, Math.min(arrowLeft, maxArrowLeft));
-        
-        // Apply arrow position
-        tooltip.style.setProperty('--arrow-left', clampedArrowLeft + 'px');
-        
-        // Show tooltip and mark as active
-        tooltip.classList.add('show');
-        activeTooltip = true;
-        
-        // Auto-hide after duration if specified
-        if (TOOLTIP_DURATION > 0) {
-          tooltipHideTimeout = setTimeout(() => {
-            hideTooltip();
-          }, TOOLTIP_DURATION);
-        }
-      }, effectiveDelay);
-    }
-    
-    function hideTooltip() {
-      const tooltip = document.getElementById('custom-tooltip');
-      
-      // Clear timeouts
-      if (tooltipTimeout) clearTimeout(tooltipTimeout);
-      if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
-      
-      // Hide tooltip and mark as inactive
-      tooltip.classList.remove('show');
-      activeTooltip = false;
-      
-      // Clear positioning to prevent layout issues
-      setTimeout(() => {
-        if (!tooltip.classList.contains('show')) {
-          tooltip.style.removeProperty('left');
-          tooltip.style.removeProperty('top');
-          tooltip.style.removeProperty('--arrow-left');
-          tooltip.style.removeProperty('width'); // Reset width to auto
-          tooltip.textContent = '';
-        }
-      }, 200); // Wait for transition to complete
-    }
-    
-    // Tooltip helper functions for different button states
-    function getTooltipMessage(buttonType, isEnabled, reason = '') {
-      // Since we only show tooltips for disabled buttons, isEnabled will always be false
-      if (reason) {
-        return reason;
-      }
-      
-      switch (buttonType) {
-        case 'fill':
-          return 'Select a layer with one fill';
-        case 'stroke':
-          return 'Select a layer with one stroke';
-        case 'shadow':
-          return 'Select a layer with one or more shadows';
-        case 'export':
-          return 'Select one or more layers';
+      let colorValue;
+
+      switch (format) {
+        case 'hex':
+          colorValue = currentFillColor.hex;
+          console.log('Using hex value:', colorValue);
+          break;
+        case 'rgb':
+          colorValue = `rgb(${Math.round(currentFillColor.r * 255)}, ${Math.round(currentFillColor.g * 255)}, ${Math.round(currentFillColor.b * 255)})`;
+          console.log('Calculated RGB value:', colorValue);
+          break;
+        case 'rgba':
+          const alpha = currentFillColor.a !== undefined ? currentFillColor.a : 1;
+          colorValue = `rgba(${Math.round(currentFillColor.r * 255)}, ${Math.round(currentFillColor.g * 255)}, ${Math.round(currentFillColor.b * 255)}, ${alpha})`;
+          console.log('Calculated RGBA value:', colorValue);
+          break;
+        case 'hsl':
+          colorValue = rgbToHsl(currentFillColor.r, currentFillColor.g, currentFillColor.b);
+          console.log('Calculated HSL value:', colorValue);
+          break;
+        case 'hsb':
+          colorValue = rgbToHsb(currentFillColor.r, currentFillColor.g, currentFillColor.b);
+          console.log('Calculated HSB value:', colorValue);
+          break;
         default:
-          return `No ${buttonType} available`;
-      }
-    }
-
-    function updateFillButton(fillColor, fillCount, selectionCount) {
-      // Update fill color and button state
-      const fillBtn = document.getElementById('fill-btn');
-      console.log('Current fill button state before update:', {
-        disabled: fillBtn.disabled
-      });
-
-      if (selectionCount === 1 && fillCount === 1 && fillColor) {
-        currentFillColor = fillColor;
-        fillBtn.disabled = false;
-        // fillBtn.setAttribute('title', 'Copy fill color to clipboard'); - REMOVED: Using custom tooltips only
-        console.log('✅ Fill button ENABLED - single fill detected');
-      } else {
-        currentFillColor = null;
-        fillBtn.disabled = true;
-        
-        
-        console.log('❌ Fill button DISABLED');
+          colorValue = currentFillColor.hex;
+          console.log('Using default hex value:', colorValue);
       }
 
-      console.log('Fill button state after update:', {
-        disabled: fillBtn.disabled
-      });
+      console.log('Calling copyToClipboard with:', colorValue, format);
+      copyToClipboard(colorValue, format);
     }
 
-    // Initialize tooltip system when DOM is loaded
-    document.addEventListener('DOMContentLoaded', function() {
-      // Set up tooltip handlers for all buttons
-      const buttons = [
-        { id: 'export-btn', type: 'export' },
-        { id: 'fill-btn', type: 'fill' },
-        { id: 'stroke-btn', type: 'stroke' },
-        { id: 'shadow-btn', type: 'shadow' }
-      ];
+    // Update stroke color copying function to use saved preference
+    function copyCurrentStrokeColor() {
+      console.log('Stroke button clicked!');
+      console.log('currentStrokeColor:', currentStrokeColor);
       
-      buttons.forEach(({ id, type }) => {
-        const button = document.getElementById(id);
-        if (button) {
-          button.addEventListener('mouseenter', function() {
-            const isEnabled = !button.disabled;
-            // Only show tooltips for disabled buttons
-            if (!isEnabled) {
-              const message = getTooltipMessage(type, isEnabled, button.getAttribute('data-tooltip-reason') || '');
-              showTooltip(button, message);
-            }
-          });
-          
-          button.addEventListener('mouseleave', function() {
-            hideTooltip();
-          });
-        }
-      });
-      
-      console.log('🎯 Custom tooltip system initialized');
-    });
-
-    // Theme Detection and Management
-    function setTheme(theme) {
-      console.log(`🎨 Setting theme to: ${theme}`);
-      document.documentElement.setAttribute('data-theme', theme);
-    }
-
-    function initializeTheme() {
-      // Try to get theme from Figma first
-      parent.postMessage({ 
-        pluginMessage: { 
-          type: 'get-theme' 
-        } 
-      }, '*');
-      
-      // Fallback to system default if no theme received from Figma
-      setTimeout(() => {
-        // System default fallback
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-          setTheme('dark');
-        } else {
-          setTheme('light');
-        }
-      }, 100);
-    }
-
-    // Listen for theme changes from system
-    if (window.matchMedia) {
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-        if (e.matches) {
-          setTheme('dark');
-        } else {
-          setTheme('light');
-        }
-      });
-    }
-
-    // Handle theme messages from the main plugin code
-    const originalOnMessage = window.onmessage;
-    window.onmessage = function(event) {
-      // Call original handler first
-      if (originalOnMessage) {
-        originalOnMessage(event);
+      if (!currentStrokeColor) {
+        console.log('No stroke color - showing error message');
+        showSuccess('No stroke color available');
+        return;
       }
-      
-      // Handle theme messages
-      const { type, theme } = event.data;
-      if (type === 'theme-changed') {
-        setTheme(theme);
-      }
-    };
 
-    // Initialize theme on load
-    initializeTheme();
-    
-    console.log('🎨 Theme system initialized');
+      // Use saved preference instead of current UI selection
+      const format = strokeFormatPreference;
+      console.log('Using saved stroke format preference:', format);
+      
+      let colorValue;
+
+      switch (format) {
+        case 'hex':
+          colorValue = currentStrokeColor.hex;
+          console.log('Using stroke hex value:', colorValue);
+          break;
+        case 'rgb':
+          colorValue = `rgb(${Math.round(currentStrokeColor.r * 255)}, ${Math.round(currentStrokeColor.g * 255)}, ${Math.round(currentStrokeColor.b * 255)})`;
+          console.log('Calculated stroke RGB value:', colorValue);
+          break;
+        case 'rgba':
+          const alpha = currentStrokeColor.a !== undefined ? currentStrokeColor.a : 1;
+          colorValue = `rgba(${Math.round(currentStrokeColor.r * 255)}, ${Math.round(currentStrokeColor.g * 255)}, ${Math.round(currentStrokeColor.b * 255)}, ${alpha})`;
+          console.log('Calculated stroke RGBA value:', colorValue);
+          break;
+        case 'hsl':
+          colorValue = rgbToHsl(currentStrokeColor.r, currentStrokeColor.g, currentStrokeColor.b);
+          console.log('Calculated stroke HSL value:', colorValue);
+          break;
+        case 'hsb':
+          colorValue = rgbToHsb(currentStrokeColor.r, currentStrokeColor.g, currentStrokeColor.b);
+          console.log('Calculated stroke HSB value:', colorValue);
+          break;
+        default:
+          colorValue = currentStrokeColor.hex;
+          console.log('Using default stroke hex value:', colorValue);
+      }
+
+      console.log('Calling copyToClipboard with stroke:', colorValue, format);
+      copyToClipboard(colorValue, format);
+    }
+
+    // Add click handlers for copy buttons
+    document.getElementById('fill-btn').onclick = copyCurrentFillColor;
+    document.getElementById('stroke-btn').onclick = copyCurrentStrokeColor;
+    document.getElementById('shadow-btn').onclick = copyCurrentShadow;
+
+    // Request settings on load
+    parent.postMessage({ 
+      pluginMessage: { 
+        type: 'load-settings'
+      } 
+    }, '*');
   </script>
 </body>
 </html>
